@@ -109,7 +109,8 @@ class IterBasedTrainer(BaseTrainer):
         self.before_val()
         summary_board = SummaryBoard(adaptive=True)
         timer = Timer()
-        total_iterations = len(self.val_loader)
+        #total_iterations = len(self.val_loader)
+        total_iterations = 100
         pbar = tqdm.tqdm(enumerate(self.val_loader), total=total_iterations)
         for iteration, data_dict in pbar:
             self.inner_iteration = iteration + 1
@@ -129,6 +130,15 @@ class IterBasedTrainer(BaseTrainer):
             )
             pbar.set_description(message)
             torch.cuda.empty_cache()
+            if iteration == 100:
+                # save the point cloud and corresponding prediction
+                ref_points_c = output_dict['ref_points_c'].cpu().numpy()
+                src_points_c = output_dict['src_points_c'].cpu().numpy()
+                ref_node_corr_indices = output_dict['ref_node_corr_indices'].cpu().numpy()
+                src_node_corr_indices = output_dict['src_node_corr_indices'].cpu().numpy()
+                gt_node_corr_indices = output_dict['gt_node_corr_indices'].cpu().numpy()
+                break
+
         self.after_val()
         summary_dict = summary_board.summary()
         message = '[Val] ' + get_log_string(summary_dict, iteration=self.iteration, timer=timer)

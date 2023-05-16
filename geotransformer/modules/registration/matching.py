@@ -1,6 +1,7 @@
 from typing import Optional
 
 import torch
+import open3d as o3d
 
 from geotransformer.modules.ops import index_select, apply_transform, pairwise_distance, get_point_to_node_indices
 
@@ -261,8 +262,20 @@ def get_node_correspondences(
         corr_indices: torch.LongTensor (C, 2)
         corr_overlaps: torch.Tensor (C,)
     """
+    src_vis = o3d.geometry.PointCloud()
+    src_vis.points = o3d.utility.Vector3dVector(src_nodes.cpu().numpy())
+
     src_nodes = apply_transform(src_nodes, transform)
     src_knn_points = apply_transform(src_knn_points, transform)
+
+    src_t_vis = o3d.geometry.PointCloud()
+    src_t_vis.points = o3d.utility.Vector3dVector(src_nodes.cpu().numpy())
+    ref_vis = o3d.geometry.PointCloud()
+    ref_vis.points = o3d.utility.Vector3dVector(ref_nodes.cpu().numpy())
+    o3d.io.write_point_cloud("src_vis.ply", src_vis)
+    o3d.io.write_point_cloud("src_t_vis.ply", src_t_vis)
+    o3d.io.write_point_cloud("ref_vis.ply", ref_vis)
+
 
     # generate masks
     if ref_masks is None:

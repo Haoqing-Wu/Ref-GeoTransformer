@@ -1,4 +1,5 @@
 from geotransformer.datasets.registration.modelnet.dataset import ModelNetPairDataset
+from geotransformer.datasets.registration.linemod.linemod import LMODataset
 from geotransformer.utils.data import (
     registration_collate_fn_stack_mode,
     calibrate_neighbors_stack_mode,
@@ -7,23 +8,34 @@ from geotransformer.utils.data import (
 
 
 def train_valid_data_loader(cfg, distributed):
-    train_dataset = ModelNetPairDataset(
-        cfg.data.dataset_root,
-        "train",
-        num_points=cfg.data.num_points,
-        voxel_size=cfg.data.voxel_size,
-        rotation_magnitude=cfg.data.rotation_magnitude,
-        translation_magnitude=cfg.data.translation_magnitude,
-        noise_magnitude=cfg.train.noise_magnitude,
-        keep_ratio=cfg.data.keep_ratio,
-        crop_method=cfg.data.crop_method,
-        asymmetric=cfg.data.asymmetric,
-        class_indices=cfg.train.class_indices,
-        deterministic=False,
-        twice_sample=cfg.data.twice_sample,
-        twice_transform=cfg.data.twice_transform,
-        return_normals=False,
-        return_occupancy=True,
+    # train_dataset = ModelNetPairDataset(
+    #     cfg.data.dataset_root,
+    #     "train",
+    #     num_points=cfg.data.num_points,
+    #     voxel_size=cfg.data.voxel_size,
+    #     rotation_magnitude=cfg.data.rotation_magnitude,
+    #     translation_magnitude=cfg.data.translation_magnitude,
+    #     noise_magnitude=cfg.train.noise_magnitude,
+    #     keep_ratio=cfg.data.keep_ratio,
+    #     crop_method=cfg.data.crop_method,
+    #     asymmetric=cfg.data.asymmetric,
+    #     class_indices=cfg.train.class_indices,
+    #     deterministic=False,
+    #     twice_sample=cfg.data.twice_sample,
+    #     twice_transform=cfg.data.twice_transform,
+    #     return_normals=False,
+    #     return_occupancy=True,
+    # )
+    train_dataset = LMODataset(
+        data_folder='./data/',
+        reload_data=False,
+        data_augmentation=True,
+        rotated=False,
+        rot_factor=1.0,
+        augment_noise=0.0005,
+        points_limit=1000,
+        mode='train',
+        overfit=None,
     )
     neighbor_limits = calibrate_neighbors_stack_mode(
         train_dataset,
@@ -45,23 +57,34 @@ def train_valid_data_loader(cfg, distributed):
         distributed=distributed,
     )
 
-    valid_dataset = ModelNetPairDataset(
-        cfg.data.dataset_root,
-        "val",
-        num_points=cfg.data.num_points,
-        voxel_size=cfg.data.voxel_size,
-        rotation_magnitude=cfg.data.rotation_magnitude,
-        translation_magnitude=cfg.data.translation_magnitude,
-        noise_magnitude=cfg.test.noise_magnitude,
-        keep_ratio=cfg.data.keep_ratio,
-        crop_method=cfg.data.crop_method,
-        asymmetric=cfg.data.asymmetric,
-        class_indices=cfg.test.class_indices,
-        deterministic=True,
-        twice_sample=cfg.data.twice_sample,
-        twice_transform=cfg.data.twice_transform,
-        return_normals=False,
-        return_occupancy=True,
+    # valid_dataset = ModelNetPairDataset(
+    #     cfg.data.dataset_root,
+    #     "val",
+    #     num_points=cfg.data.num_points,
+    #     voxel_size=cfg.data.voxel_size,
+    #     rotation_magnitude=cfg.data.rotation_magnitude,
+    #     translation_magnitude=cfg.data.translation_magnitude,
+    #     noise_magnitude=cfg.test.noise_magnitude,
+    #     keep_ratio=cfg.data.keep_ratio,
+    #     crop_method=cfg.data.crop_method,
+    #     asymmetric=cfg.data.asymmetric,
+    #     class_indices=cfg.test.class_indices,
+    #     deterministic=True,
+    #     twice_sample=cfg.data.twice_sample,
+    #     twice_transform=cfg.data.twice_transform,
+    #     return_normals=False,
+    #     return_occupancy=True,
+    # )
+    valid_dataset = LMODataset(
+        data_folder='./data/',
+        reload_data=False,
+        data_augmentation=True,
+        rotated=False,
+        rot_factor=1.0,
+        augment_noise=0.0005,
+        points_limit=1000,
+        mode='test',
+        overfit=None,
     )
     valid_loader = build_dataloader_stack_mode(
         valid_dataset,
@@ -80,23 +103,34 @@ def train_valid_data_loader(cfg, distributed):
 
 
 def test_data_loader(cfg):
-    train_dataset = ModelNetPairDataset(
-        cfg.data.dataset_root,
-        "train",
-        num_points=cfg.data.num_points,
-        voxel_size=cfg.data.voxel_size,
-        rotation_magnitude=cfg.data.rotation_magnitude,
-        translation_magnitude=cfg.data.translation_magnitude,
-        noise_magnitude=cfg.train.noise_magnitude,
-        keep_ratio=cfg.data.keep_ratio,
-        crop_method=cfg.data.crop_method,
-        asymmetric=cfg.data.asymmetric,
-        class_indices=cfg.train.class_indices,
-        deterministic=False,
-        twice_sample=cfg.data.twice_sample,
-        twice_transform=cfg.data.twice_transform,
-        return_normals=False,
-        return_occupancy=True,
+    # train_dataset = ModelNetPairDataset(
+    #     cfg.data.dataset_root,
+    #     "train",
+    #     num_points=cfg.data.num_points,
+    #     voxel_size=cfg.data.voxel_size,
+    #     rotation_magnitude=cfg.data.rotation_magnitude,
+    #     translation_magnitude=cfg.data.translation_magnitude,
+    #     noise_magnitude=cfg.train.noise_magnitude,
+    #     keep_ratio=cfg.data.keep_ratio,
+    #     crop_method=cfg.data.crop_method,
+    #     asymmetric=cfg.data.asymmetric,
+    #     class_indices=cfg.train.class_indices,
+    #     deterministic=False,
+    #     twice_sample=cfg.data.twice_sample,
+    #     twice_transform=cfg.data.twice_transform,
+    #     return_normals=False,
+    #     return_occupancy=True,
+    # )
+    train_dataset = LMODataset(
+        data_folder='./data/',
+        reload_data=False,
+        data_augmentation=True,
+        rotated=False,
+        rot_factor=1.0,
+        augment_noise=0.0005,
+        points_limit=1000,
+        mode='train',
+        overfit=None,
     )
     neighbor_limits = calibrate_neighbors_stack_mode(
         train_dataset,
@@ -106,23 +140,34 @@ def test_data_loader(cfg):
         cfg.backbone.init_radius,
     )
 
-    test_dataset = ModelNetPairDataset(
-        cfg.data.dataset_root,
-        "test",
-        num_points=cfg.data.num_points,
-        voxel_size=cfg.data.voxel_size,
-        rotation_magnitude=cfg.data.rotation_magnitude,
-        translation_magnitude=cfg.data.translation_magnitude,
-        noise_magnitude=cfg.test.noise_magnitude,
-        keep_ratio=cfg.data.keep_ratio,
-        crop_method=cfg.data.crop_method,
-        asymmetric=cfg.data.asymmetric,
-        class_indices=cfg.test.class_indices,
-        deterministic=True,
-        twice_sample=cfg.data.twice_sample,
-        twice_transform=cfg.data.twice_transform,
-        return_normals=False,
-        return_occupancy=True,
+    # test_dataset = ModelNetPairDataset(
+    #     cfg.data.dataset_root,
+    #     "test",
+    #     num_points=cfg.data.num_points,
+    #     voxel_size=cfg.data.voxel_size,
+    #     rotation_magnitude=cfg.data.rotation_magnitude,
+    #     translation_magnitude=cfg.data.translation_magnitude,
+    #     noise_magnitude=cfg.test.noise_magnitude,
+    #     keep_ratio=cfg.data.keep_ratio,
+    #     crop_method=cfg.data.crop_method,
+    #     asymmetric=cfg.data.asymmetric,
+    #     class_indices=cfg.test.class_indices,
+    #     deterministic=True,
+    #     twice_sample=cfg.data.twice_sample,
+    #     twice_transform=cfg.data.twice_transform,
+    #     return_normals=False,
+    #     return_occupancy=True,
+    # )
+    test_dataset = LMODataset(
+        data_folder='./data/',
+        reload_data=False,
+        data_augmentation=True,
+        rotated=False,
+        rot_factor=1.0,
+        augment_noise=0.0005,
+        points_limit=1000,
+        mode='test',
+        overfit=None,
     )
     test_loader = build_dataloader_stack_mode(
         test_dataset,
