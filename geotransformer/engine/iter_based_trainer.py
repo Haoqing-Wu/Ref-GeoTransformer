@@ -13,6 +13,8 @@ from geotransformer.utils.summary_board import SummaryBoard
 from geotransformer.utils.timer import Timer
 from geotransformer.utils.common import get_log_string
 
+from geotransformer.datasets.registration.linemod.bop_utils import *
+
 
 class CycleLoader(object):
     def __init__(self, data_loader, epoch, distributed):
@@ -132,11 +134,7 @@ class IterBasedTrainer(BaseTrainer):
             torch.cuda.empty_cache()
             if iteration == 100:
                 # save the point cloud and corresponding prediction
-                ref_points_c = output_dict['ref_points_c'].cpu().numpy()
-                src_points_c = output_dict['src_points_c'].cpu().numpy()
-                ref_node_corr_indices = output_dict['ref_node_corr_indices'].cpu().numpy()
-                src_node_corr_indices = output_dict['src_node_corr_indices'].cpu().numpy()
-                gt_node_corr_indices = output_dict['gt_node_corr_indices'].cpu().numpy()
+                save_corr_pcd(output_dict)
                 break
 
         self.after_val()

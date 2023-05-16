@@ -21,11 +21,15 @@ def precompute_data_stack_mode(points, lengths, num_stages, voxel_size, radius, 
 
     # grid subsampling
     for i in range(num_stages):
-        if i > 0:
+        if i > 0 and i < num_stages - 1:
             points, lengths = grid_subsample(points, lengths, voxel_size=voxel_size)
+        elif i == num_stages - 1:
+            points, lengths = grid_subsample(points, lengths, voxel_size=voxel_size, 
+                                             length_ref=64, length_src=128)
         points_list.append(points)
         lengths_list.append(lengths)
         voxel_size *= 2
+        
 
     # radius search
     for i in range(num_stages):

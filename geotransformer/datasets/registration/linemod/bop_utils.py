@@ -361,6 +361,92 @@ def corr_visualisation(src_pcd, tgt_pcd, corr_mat_pred, corr_mat_gt, rot_gt, tra
     # return the inlier ratio
     return len(inlier_lines) / len(pred_lines)
     
+def save_corr_pcd(output_dict):
+    tgt_pcd = output_dict['ref_points_c'].cpu().numpy()
+    src_pcd = output_dict['src_points_c'].cpu().numpy()
+    tgt_corr_indices = output_dict['ref_node_corr_indices'].cpu().numpy()
+    src_corr_indices = output_dict['src_node_corr_indices'].cpu().numpy()
+    gt_corr = output_dict['gt_node_corr_indices'].cpu().numpy()
+    # save the target point cloud
+    pcd_frame = o3d.geometry.PointCloud()
+    pcd_frame.points = o3d.utility.Vector3dVector(tgt_pcd)
+    o3d.io.write_point_cloud("./output/geotransformer.modelnet.rpmnet.stage4.gse.k3.max.oacl.stage2.sinkhorn/result/pcd_frame.ply", pcd_frame)
+    # save the source point cloud
+    pcd_model = o3d.geometry.PointCloud()
+    pcd_model.points = o3d.utility.Vector3dVector(src_pcd)
+    o3d.io.write_point_cloud("./output/geotransformer.modelnet.rpmnet.stage4.gse.k3.max.oacl.stage2.sinkhorn/result/pcd_model.ply", pcd_model)
+    # save the ground truth correspondences
+    points = []
+    lines = []
+    for i in range(gt_corr.shape[0]):
+        src_point = src_pcd[gt_corr[i, 1]]
+        tgt_point = tgt_pcd[gt_corr[i, 0]]
+        points.append(src_point)
+        points.append(tgt_point)
+        lines.append([i * 2, i * 2 + 1])
+    line_gt = o3d.geometry.LineSet()
+    line_gt.points = o3d.utility.Vector3dVector(points)
+    line_gt.lines = o3d.utility.Vector2iVector(lines)
+    line_gt.colors = o3d.utility.Vector3dVector([[0, 1, 0] for i in range(len(lines))])
+    o3d.io.write_line_set("./output/geotransformer.modelnet.rpmnet.stage4.gse.k3.max.oacl.stage2.sinkhorn/result/line_gt.ply", line_gt)
+    # save the predicted correspondences
+    points = []
+    lines = []
+    for i in range(len(tgt_corr_indices)):
+        src_point = src_pcd[src_corr_indices[i]]
+        tgt_point = tgt_pcd[tgt_corr_indices[i]]
+        points.append(src_point)
+        points.append(tgt_point)
+        lines.append([i * 2, i * 2 + 1])
+    line_pred = o3d.geometry.LineSet()
+    line_pred.points = o3d.utility.Vector3dVector(points)
+    line_pred.lines = o3d.utility.Vector2iVector(lines)
+    line_pred.colors = o3d.utility.Vector3dVector([[0, 0.8, 0.2] for i in range(len(lines))])
+    o3d.io.write_line_set("./output/geotransformer.modelnet.rpmnet.stage4.gse.k3.max.oacl.stage2.sinkhorn/result/line_pred.ply", line_pred)
+    # find the inlier correspondences
+    pred_corr_pairs = []
+    for i in range(len(tgt_corr_indices)):
+        src_point = src_pcd[src_corr_indices[i]]
+        tgt_point = tgt_pcd[tgt_corr_indices[i]]
+        pred_corr_pairs.append([src_corr_indices[i], tgt_corr_indices[i]])
+    gt_corr_pairs = []
+    for i in range(gt_corr.shape[0]):
+        gt_corr_pairs.append([gt_corr[i, 1], gt_corr[i, 0]])
+    inlier_corr_pairs = []
+    outlier_corr_pairs = []
+    for i in range(len(pred_corr_pairs)):
+        if pred_corr_pairs[i] in gt_corr_pairs:
+            inlier_corr_pairs.append(pred_corr_pairs[i])
+        else:
+            outlier_corr_pairs.append(pred_corr_pairs[i])
+    # save the inlier correspondences
+    points = []
+    lines = []
+    for i in range(len(inlier_corr_pairs)):
+        src_point = src_pcd[inlier_corr_pairs[i][0]]
+        tgt_point = tgt_pcd[inlier_corr_pairs[i][1]]
+        points.append(src_point)
+        points.append(tgt_point)
+        lines.append([i * 2, i * 2 + 1])
+    line_inlier = o3d.geometry.LineSet()
+    line_inlier.points = o3d.utility.Vector3dVector(points)
+    line_inlier.lines = o3d.utility.Vector2iVector(lines)
+    line_inlier.colors = o3d.utility.Vector3dVector([[0, 0, 1] for i in range(len(lines))])
+    o3d.io.write_line_set("./output/geotransformer.modelnet.rpmnet.stage4.gse.k3.max.oacl.stage2.sinkhorn/result/line_inlier.ply", line_inlier)
+    # save the outlier correspondences
+    points = []
+    lines = []
+    for i in range(len(outlier_corr_pairs)):
+        src_point = src_pcd[outlier_corr_pairs[i][0]]
+        tgt_point = tgt_pcd[outlier_corr_pairs[i][1]]
+        points.append(src_point)
+        points.append(tgt_point)
+        lines.append([i * 2, i * 2 + 1])
+    line_outlier = o3d.geometry.LineSet()
+    line_outlier.points = o3d.utility.Vector3dVector(points)
+    line_outlier.lines = o3d.utility.Vector2iVector(lines)
+    line_outlier.colors = o3d.utility.Vector3dVector([[1, 0, 0] for i in range(len(lines))])
+    o3d.io.write_line_set("./output/geotransformer.modelnet.rpmnet.stage4.gse.k3.max.oacl.stage2.sinkhorn/result/line_outlier.ply", line_outlier)
 
 
     

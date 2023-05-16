@@ -75,7 +75,7 @@ _C.optim.warmup_steps = 10000
 _C.optim.eta_init = 0.1
 _C.optim.eta_min = 0.1
 _C.optim.max_iteration = 400000
-_C.optim.snapshot_steps = 1000
+_C.optim.snapshot_steps = 10000
 _C.optim.grad_acc_steps = 1
 
 # model - backbone

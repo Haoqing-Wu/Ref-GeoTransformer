@@ -28,14 +28,14 @@ def train_valid_data_loader(cfg, distributed):
     # )
     train_dataset = LMODataset(
         data_folder='./data/',
-        reload_data=False,
+        reload_data=True,
         data_augmentation=True,
         rotated=False,
         rot_factor=1.0,
         augment_noise=0.0005,
         points_limit=1000,
         mode='train',
-        overfit=None,
+        overfit=1,
     )
     neighbor_limits = calibrate_neighbors_stack_mode(
         train_dataset,
@@ -77,14 +77,14 @@ def train_valid_data_loader(cfg, distributed):
     # )
     valid_dataset = LMODataset(
         data_folder='./data/',
-        reload_data=False,
+        reload_data=True,
         data_augmentation=True,
         rotated=False,
         rot_factor=1.0,
         augment_noise=0.0005,
         points_limit=1000,
         mode='test',
-        overfit=None,
+        overfit=1,
     )
     valid_loader = build_dataloader_stack_mode(
         valid_dataset,
@@ -123,14 +123,14 @@ def test_data_loader(cfg):
     # )
     train_dataset = LMODataset(
         data_folder='./data/',
-        reload_data=False,
+        reload_data=True,
         data_augmentation=True,
         rotated=False,
         rot_factor=1.0,
         augment_noise=0.0005,
         points_limit=1000,
         mode='train',
-        overfit=None,
+        overfit=1,
     )
     neighbor_limits = calibrate_neighbors_stack_mode(
         train_dataset,
@@ -160,14 +160,14 @@ def test_data_loader(cfg):
     # )
     test_dataset = LMODataset(
         data_folder='./data/',
-        reload_data=False,
+        reload_data=True,
         data_augmentation=True,
         rotated=False,
         rot_factor=1.0,
         augment_noise=0.0005,
         points_limit=1000,
         mode='test',
-        overfit=None,
+        overfit=1,
     )
     test_loader = build_dataloader_stack_mode(
         test_dataset,
