@@ -6,7 +6,7 @@ import coloredlogs
 def create_logger(log_file=None):
     logger = logging.getLogger()
     logger.handlers.clear()
-    logger.setLevel(level=logging.DEBUG)
+    logger.setLevel(level=logging.INFO)
     logger.propagate = False
 
     format_str = '[%(asctime)s] [%(levelname).4s] %(message)s'

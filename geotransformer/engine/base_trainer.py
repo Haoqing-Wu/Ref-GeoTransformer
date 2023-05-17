@@ -21,7 +21,8 @@ from geotransformer.engine.logger import Logger
 def inject_default_parser(parser=None):
     if parser is None:
         parser = argparse.ArgumentParser()
-    parser.add_argument('--resume', action='store_true', help='resume training')
+    #parser.add_argument('--resume', action='store_true', help='resume training')
+    parser.add_argument('--resume', default=True, help='resume training')
     parser.add_argument('--snapshot', default=None, help='load from snapshot')
     parser.add_argument('--epoch', type=int, default=None, help='load epoch')
     parser.add_argument('--log_steps', type=int, default=10, help='logging steps')
@@ -86,7 +87,6 @@ class BaseTrainer(abc.ABC):
         )
 
         # basic config
-        self.snapshot_dir = cfg.snapshot_dir
         self.log_steps = self.args.log_steps
         self.run_grad_check = run_grad_check
         self.save_all_snapshots = save_all_snapshots
@@ -109,7 +109,7 @@ class BaseTrainer(abc.ABC):
         self.training = True
         self.grad_acc_steps = grad_acc_steps
 
-    def save_snapshot(self, filename):
+    def save_snapshot(self, filename, dir):
         if self.local_rank != 0:
             return
 
@@ -119,7 +119,7 @@ class BaseTrainer(abc.ABC):
             model_state_dict = OrderedDict([(key[7:], value) for key, value in model_state_dict.items()])
 
         # save model
-        filename = osp.join(self.snapshot_dir, filename)
+        filename = osp.join(dir, filename)
         state_dict = {
             'epoch': self.epoch,
             'iteration': self.iteration,
@@ -129,7 +129,7 @@ class BaseTrainer(abc.ABC):
         self.logger.info('Model saved to "{}"'.format(filename))
 
         # save snapshot
-        snapshot_filename = osp.join(self.snapshot_dir, 'snapshot.pth.tar')
+        snapshot_filename = osp.join(dir, 'snapshot.pth.tar')
         state_dict['optimizer'] = self.optimizer.state_dict()
         if self.scheduler is not None:
             state_dict['scheduler'] = self.scheduler.state_dict()

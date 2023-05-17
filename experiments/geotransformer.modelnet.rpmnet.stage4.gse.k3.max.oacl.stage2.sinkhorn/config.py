@@ -17,12 +17,14 @@ _C.working_dir = osp.dirname(osp.realpath(__file__))
 _C.root_dir = osp.dirname(osp.dirname(_C.working_dir))
 _C.exp_name = osp.basename(_C.working_dir)
 _C.output_dir = osp.join(_C.root_dir, "output", _C.exp_name)
-_C.snapshot_dir = osp.join(_C.output_dir, "snapshots")
+_C.snapshot_encoder_dir = osp.join(_C.output_dir, "snapshots/encoder")
+_C.snapshot_ddpm_dir = osp.join(_C.output_dir, "snapshots/ddpm")
 _C.log_dir = osp.join(_C.output_dir, "logs")
 _C.event_dir = osp.join(_C.output_dir, "events")
 
 ensure_dir(_C.output_dir)
-ensure_dir(_C.snapshot_dir)
+ensure_dir(_C.snapshot_encoder_dir)
+ensure_dir(_C.snapshot_ddpm_dir)
 ensure_dir(_C.log_dir)
 ensure_dir(_C.event_dir)
 
@@ -75,7 +77,7 @@ _C.optim.warmup_steps = 10000
 _C.optim.eta_init = 0.1
 _C.optim.eta_min = 0.1
 _C.optim.max_iteration = 400000
-_C.optim.snapshot_steps = 10000
+_C.optim.snapshot_steps = 1000
 _C.optim.grad_acc_steps = 1
 
 # model - backbone

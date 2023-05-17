@@ -8,8 +8,9 @@ import torch.nn as nn
 import torch.optim as optim
 from IPython import embed
 
-from geotransformer.engine.iter_based_trainer import IterBasedTrainer
+from geotransformer.engine.iter_based_trainer import IterBasedEncoderTrainer, IterBasedDDPMTrainer
 from geotransformer.utils.torch import build_warmup_cosine_lr_scheduler
+from geotransformer.modules.cordi.cordi import create_cordi
 
 from config import make_cfg
 from dataset import train_valid_data_loader
@@ -17,7 +18,7 @@ from model import create_model
 from loss import OverallLoss, Evaluator
 
 
-class Trainer(IterBasedTrainer):
+class EncoderTrainer(IterBasedEncoderTrainer):
     def __init__(self, cfg):
         super().__init__(cfg, max_iteration=cfg.optim.max_iteration, snapshot_steps=cfg.optim.snapshot_steps)
 
@@ -64,12 +65,71 @@ class Trainer(IterBasedTrainer):
         loss_dict.update(result_dict)
         return output_dict, loss_dict
 
+class DDPMTrainer(IterBasedDDPMTrainer):
+    def __init__(self, cfg):
+        super().__init__(cfg, max_iteration=cfg.optim.max_iteration, snapshot_steps=cfg.optim.snapshot_steps)
 
-def main():
+        # dataloader
+        start_time = time.time()
+        train_loader, val_loader, neighbor_limits = train_valid_data_loader(cfg, self.distributed)
+        loading_time = time.time() - start_time
+        message = 'Data loader created: {:.3f}s collapsed.'.format(loading_time)
+        self.logger.info(message)
+        message = 'Calibrate neighbors: {}.'.format(neighbor_limits)
+        self.logger.info(message)
+        self.register_loader(train_loader, val_loader)
+
+        # model, optimizer, scheduler
+        self.encoder = create_model(cfg).cuda() # encoder
+        
+        # create ddpm model
+        ########################################
+        self.model = create_cordi(cfg).cuda() # ddpm
+        ########################################
+        model = self.register_model(model)
+        optimizer = optim.Adam(model.parameters(), lr=cfg.optim.lr, weight_decay=cfg.optim.weight_decay)
+        self.register_optimizer(optimizer)
+        scheduler = build_warmup_cosine_lr_scheduler(
+            optimizer,
+            total_steps=cfg.optim.max_iteration,
+            warmup_steps=cfg.optim.warmup_steps,
+            eta_init=cfg.optim.eta_init,
+            eta_min=cfg.optim.eta_min,
+            grad_acc_steps=cfg.optim.grad_acc_steps,
+        )
+        self.register_scheduler(scheduler)
+
+        # loss function, evaluator
+        self.loss_func = OverallLoss(cfg).cuda()
+        self.evaluator = Evaluator(cfg).cuda()
+
+    def train_step(self, iteration, data_dict):
+        output_dict = self.model(data_dict)
+        loss_dict = self.loss_func(output_dict, data_dict)
+        result_dict = self.evaluator(output_dict, data_dict)
+        loss_dict.update(result_dict)
+        return output_dict, loss_dict
+
+    def val_step(self, iteration, data_dict):
+        output_dict = self.model(data_dict)
+        loss_dict = self.loss_func(output_dict, data_dict)
+        result_dict = self.evaluator(output_dict, data_dict)
+        loss_dict.update(result_dict)
+        return output_dict, loss_dict
+
+def main(args):
     cfg = make_cfg()
-    trainer = Trainer(cfg)
-    trainer.run()
+    if args.train_mode == 'encoder':
+        trainer = EncoderTrainer(cfg)
+        trainer.run()
+    elif args.train_mode == 'ddpm':
+        trainer = DDPMTrainer(cfg)
+        trainer.run()
+
 
 
 if __name__ == '__main__':
-    main()
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--train_mode', default='encoder', type=str)
+    args = parser.parse_args()
+    main(args)
