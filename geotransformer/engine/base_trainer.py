@@ -21,8 +21,7 @@ from geotransformer.engine.logger import Logger
 def inject_default_parser(parser=None):
     if parser is None:
         parser = argparse.ArgumentParser()
-    #parser.add_argument('--resume', action='store_true', help='resume training')
-    parser.add_argument('--resume', default=True, help='resume training')
+    parser.add_argument('--resume', action='store_true', help='resume training')
     parser.add_argument('--snapshot', default=None, help='load from snapshot')
     parser.add_argument('--epoch', type=int, default=None, help='load epoch')
     parser.add_argument('--log_steps', type=int, default=10, help='logging steps')
@@ -90,6 +89,9 @@ class BaseTrainer(abc.ABC):
         self.log_steps = self.args.log_steps
         self.run_grad_check = run_grad_check
         self.save_all_snapshots = save_all_snapshots
+        
+        # pretrained encoder
+        self.encoder_model = None
 
         # state
         self.model = None
@@ -136,7 +138,7 @@ class BaseTrainer(abc.ABC):
         torch.save(state_dict, snapshot_filename)
         self.logger.info('Snapshot saved to "{}"'.format(snapshot_filename))
 
-    def load_snapshot(self, snapshot, fix_prefix=True):
+    def load_snapshot(self, snapshot, load_pretrain=False, pretrained_snapshot=None, fix_prefix=True):
         self.logger.info('Loading from "{}".'.format(snapshot))
         state_dict = torch.load(snapshot, map_location=torch.device('cpu'))
 
@@ -175,6 +177,15 @@ class BaseTrainer(abc.ABC):
         if 'scheduler' in state_dict and self.scheduler is not None:
             self.scheduler.load_state_dict(state_dict['scheduler'])
             self.logger.info('Scheduler has been loaded.')
+
+    def load_pretrained_model(self, snapshot):
+        self.logger.info('Loading pretrained model from "{}".'.format(snapshot))
+        state_dict = torch.load(snapshot, map_location=torch.device('cpu'))
+        model_dict = state_dict['model']
+        if self.distributed:
+            model_dict = OrderedDict([('module.' + key, value) for key, value in model_dict.items()])
+        self.encoder_model.load_state_dict(model_dict, strict=False)
+        self.logger.info('Pretrained model has been loaded.')
 
     def register_model(self, model):
         r"""Register model. DDP is automatically used."""

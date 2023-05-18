@@ -254,22 +254,22 @@ class IterBasedDDPMTrainer(BaseTrainer):
     def before_val_step(self, iteration, data_dict) -> None:
         pass
 
-    def after_train_step(self, iteration, data_dict, output_dict, result_dict) -> None:
+    def after_train_step(self, iteration, data_dict, result_dict) -> None:
         pass
 
     def after_val_step(self, iteration, data_dict, output_dict, result_dict) -> None:
         pass
 
-    def train_step(self, iteration, data_dict) -> Tuple[Dict, Dict]:
+    def train_step(self, iteration, data_dict) -> Dict:
         pass
 
     def val_step(self, iteration, data_dict) -> Tuple[Dict, Dict]:
         pass
 
-    def after_backward(self, iteration, data_dict, output_dict, result_dict) -> None:
+    def after_backward(self, iteration, data_dict, result_dict) -> None:
         pass
 
-    def check_gradients(self, iteration, data_dict, output_dict, result_dict):
+    def check_gradients(self, iteration, data_dict, result_dict):
         if not self.run_grad_check:
             return
         if not self.check_invalid_gradients():
@@ -321,8 +321,11 @@ class IterBasedDDPMTrainer(BaseTrainer):
         assert self.train_loader is not None
         assert self.val_loader is not None
 
+        # load pretrained encoder -> self.encoder_model
+        self.load_snapshot(osp.join(self.snapshot_encoder_dir, 'snapshot.pth.tar'))
+
         if self.args.resume:
-            self.load_snapshot(osp.join(self.snapshot_dir, 'snapshot.pth.tar'))
+            self.load_snapshot(osp.join(self.snapshot_ddpm_dir, 'snapshot.pth.tar'))
         elif self.args.snapshot is not None:
             self.load_snapshot(self.args.snapshot)
         self.set_train_mode()
@@ -340,15 +343,15 @@ class IterBasedDDPMTrainer(BaseTrainer):
             self.before_train_step(self.iteration, data_dict)
             self.timer.add_prepare_time()
             # forward
-            output_dict, result_dict = self.train_step(self.iteration, data_dict)
+            result_dict = self.train_step(self.iteration, data_dict)
             # backward & optimization
             result_dict['loss'].backward()
-            self.after_backward(self.iteration, data_dict, output_dict, result_dict)
-            self.check_gradients(self.iteration, data_dict, output_dict, result_dict)
+            self.after_backward(self.iteration, data_dict, result_dict)
+            self.check_gradients(self.iteration, data_dict, result_dict)
             self.optimizer_step(self.iteration)
             # after training
             self.timer.add_process_time()
-            self.after_train_step(self.iteration, data_dict, output_dict, result_dict)
+            self.after_train_step(self.iteration, data_dict, result_dict)
             result_dict = self.release_tensors(result_dict)
             self.summary_board.update_from_result_dict(result_dict)
             # logging

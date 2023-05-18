@@ -18,7 +18,7 @@ from model import create_model
 from loss import OverallLoss, Evaluator
 
 
-class EncoderTrainer(IterBasedEncoderTrainer):
+class DDPMTrainer(IterBasedDDPMTrainer):
     def __init__(self, cfg):
         super().__init__(cfg, max_iteration=cfg.optim.max_iteration, snapshot_steps=cfg.optim.snapshot_steps)
 
@@ -33,7 +33,12 @@ class EncoderTrainer(IterBasedEncoderTrainer):
         self.register_loader(train_loader, val_loader)
 
         # model, optimizer, scheduler
-        model = create_model(cfg).cuda()
+        self.encoder = create_model(cfg).cuda() # encoder
+        
+        # create ddpm model
+        ########################################
+        self.model = create_cordi(cfg).cuda() # ddpm
+        ########################################
         model = self.register_model(model)
         optimizer = optim.Adam(model.parameters(), lr=cfg.optim.lr, weight_decay=cfg.optim.weight_decay)
         self.register_optimizer(optimizer)
@@ -43,7 +48,7 @@ class EncoderTrainer(IterBasedEncoderTrainer):
             warmup_steps=cfg.optim.warmup_steps,
             eta_init=cfg.optim.eta_init,
             eta_min=cfg.optim.eta_min,
-            grad_acc_steps=cfg.optim.grad_acc_steps,
+            grad_acc_steps=cfg.optim.grad_acc_steps
         )
         self.register_scheduler(scheduler)
 
@@ -52,11 +57,9 @@ class EncoderTrainer(IterBasedEncoderTrainer):
         self.evaluator = Evaluator(cfg).cuda()
 
     def train_step(self, iteration, data_dict):
-        output_dict = self.model(data_dict)
-        loss_dict = self.loss_func(output_dict, data_dict)
-        result_dict = self.evaluator(output_dict, data_dict)
-        loss_dict.update(result_dict)
-        return output_dict, loss_dict
+        latent_dict = self.encoder(data_dict)
+        loss_dict = self.model.get_loss(latent_dict)
+        return loss_dict
 
     def val_step(self, iteration, data_dict):
         output_dict = self.model(data_dict)
@@ -65,11 +68,11 @@ class EncoderTrainer(IterBasedEncoderTrainer):
         loss_dict.update(result_dict)
         return output_dict, loss_dict
 
-
 def main():
     cfg = make_cfg()
-    trainer = EncoderTrainer(cfg)
+    trainer = DDPMTrainer(cfg)
     trainer.run()
+
 
 
 if __name__ == '__main__':
