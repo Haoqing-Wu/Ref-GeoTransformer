@@ -8,7 +8,7 @@ import torch.nn as nn
 import torch.optim as optim
 from IPython import embed
 
-from geotransformer.engine.iter_based_trainer import IterBasedEncoderTrainer, IterBasedDDPMTrainer
+from geotransformer.engine.iter_based_trainer import IterBasedDDPMTrainer
 from geotransformer.utils.torch import build_warmup_cosine_lr_scheduler
 from geotransformer.modules.cordi.cordi import create_cordi
 
@@ -16,6 +16,7 @@ from config import make_cfg
 from dataset import train_valid_data_loader
 from model import create_model
 from loss import OverallLoss, Evaluator
+
 
 
 class DDPMTrainer(IterBasedDDPMTrainer):
@@ -33,11 +34,11 @@ class DDPMTrainer(IterBasedDDPMTrainer):
         self.register_loader(train_loader, val_loader)
 
         # model, optimizer, scheduler
-        self.encoder = create_model(cfg).cuda() # encoder
-        
+        encoder_model = create_model(cfg).cuda() # encoder
+        encoder_model = self.register_pretrained_model(encoder_model)
         # create ddpm model
         ########################################
-        self.model = create_cordi(cfg).cuda() # ddpm
+        model = create_cordi(cfg).cuda() # ddpm
         ########################################
         model = self.register_model(model)
         optimizer = optim.Adam(model.parameters(), lr=cfg.optim.lr, weight_decay=cfg.optim.weight_decay)

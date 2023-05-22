@@ -102,9 +102,9 @@ _C.model.num_sinkhorn_iterations = 100
 
 # model - Coarse Matching
 _C.coarse_matching = edict()
-_C.coarse_matching.num_targets = 64
+_C.coarse_matching.num_targets = 128
 _C.coarse_matching.overlap_threshold = 0.1
-_C.coarse_matching.num_correspondences = 64
+_C.coarse_matching.num_correspondences = 128
 _C.coarse_matching.dual_normalization = True
 
 # model - GeoTransformer
@@ -130,6 +130,25 @@ _C.fine_matching.use_global_score = False
 _C.fine_matching.correspondence_threshold = 3
 _C.fine_matching.correspondence_limit = None
 _C.fine_matching.num_refinement_steps = 5
+
+# model - DDPM
+_C.ddpm = edict()
+_C.ddpm.num_steps = 100
+_C.ddpm.beta_1 = 1e-4
+_C.ddpm.beta_T = 0.02
+_C.ddpm.sched_mode = 'linear'
+_C.ddpm.ref_sample_num = 40
+_C.ddpm.src_sample_num = 80
+
+# model - DDPM - Transformer
+_C.ddpm_transformer = edict()
+_C.ddpm_transformer.n_layers = 8
+_C.ddpm_transformer.n_heads = 8
+_C.ddpm_transformer.query_dimensions = 64
+_C.ddpm_transformer.value_dimensions = 64
+_C.ddpm_transformer.feed_forward_dimensions = 2048
+_C.ddpm_transformer.attention_type = "full"
+_C.ddpm_transformer.activation = "gelu"
 
 # loss - Coarse level
 _C.coarse_loss = edict()

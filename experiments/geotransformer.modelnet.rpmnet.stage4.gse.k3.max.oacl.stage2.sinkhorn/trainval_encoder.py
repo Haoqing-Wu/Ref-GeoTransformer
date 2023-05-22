@@ -8,9 +8,9 @@ import torch.nn as nn
 import torch.optim as optim
 from IPython import embed
 
-from geotransformer.engine.iter_based_trainer import IterBasedEncoderTrainer, IterBasedDDPMTrainer
+from geotransformer.engine.iter_based_trainer import IterBasedEncoderTrainer
 from geotransformer.utils.torch import build_warmup_cosine_lr_scheduler
-from geotransformer.modules.cordi.cordi import create_cordi
+
 
 from config import make_cfg
 from dataset import train_valid_data_loader
@@ -64,6 +64,7 @@ class EncoderTrainer(IterBasedEncoderTrainer):
         result_dict = self.evaluator(output_dict, data_dict)
         loss_dict.update(result_dict)
         return output_dict, loss_dict
+
 
 
 def main():

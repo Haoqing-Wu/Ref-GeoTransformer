@@ -138,7 +138,7 @@ class BaseTrainer(abc.ABC):
         torch.save(state_dict, snapshot_filename)
         self.logger.info('Snapshot saved to "{}"'.format(snapshot_filename))
 
-    def load_snapshot(self, snapshot, load_pretrain=False, pretrained_snapshot=None, fix_prefix=True):
+    def load_snapshot(self, snapshot, fix_prefix=True):
         self.logger.info('Loading from "{}".'.format(snapshot))
         state_dict = torch.load(snapshot, map_location=torch.device('cpu'))
 
@@ -193,6 +193,16 @@ class BaseTrainer(abc.ABC):
             local_rank = self.local_rank
             model = nn.parallel.DistributedDataParallel(model, device_ids=[local_rank], output_device=local_rank)
         self.model = model
+        message = 'Model description:\n' + str(model)
+        self.logger.info(message)
+        return model
+    
+    def register_pretrained_model(self, model):
+        r"""Register model. DDP is automatically used."""
+        if self.distributed:
+            local_rank = self.local_rank
+            model = nn.parallel.DistributedDataParallel(model, device_ids=[local_rank], output_device=local_rank)
+        self.encoder_model = model
         message = 'Model description:\n' + str(model)
         self.logger.info(message)
         return model
