@@ -55,19 +55,19 @@ class DDPMTrainer(IterBasedDDPMTrainer):
 
         # loss function, evaluator
         self.loss_func = OverallLoss(cfg).cuda()
-        self.evaluator = Evaluator(cfg).cuda()
+        #self.evaluator = Evaluator(cfg).cuda()
 
     def train_step(self, iteration, data_dict):
-        latent_dict = self.encoder(data_dict)
+        with torch.no_grad():
+            latent_dict = self.encoder_model(data_dict)
         loss_dict = self.model.get_loss(latent_dict)
         return loss_dict
 
     def val_step(self, iteration, data_dict):
-        output_dict = self.model(data_dict)
-        loss_dict = self.loss_func(output_dict, data_dict)
-        result_dict = self.evaluator(output_dict, data_dict)
-        loss_dict.update(result_dict)
-        return output_dict, loss_dict
+        latent_dict = self.encoder_model(data_dict)
+        output_dict = self.model.sample(latent_dict)
+        #result_dict = self.evaluator(output_dict)
+        return output_dict
 
 def main():
     cfg = make_cfg()

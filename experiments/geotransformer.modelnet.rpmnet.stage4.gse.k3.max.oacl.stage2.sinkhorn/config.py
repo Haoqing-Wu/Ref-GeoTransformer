@@ -139,11 +139,12 @@ _C.ddpm.beta_T = 0.02
 _C.ddpm.sched_mode = 'linear'
 _C.ddpm.ref_sample_num = 40
 _C.ddpm.src_sample_num = 80
+_C.ddpm.time_emb_dim = 256
 
 # model - DDPM - Transformer
 _C.ddpm_transformer = edict()
-_C.ddpm_transformer.n_layers = 8
-_C.ddpm_transformer.n_heads = 8
+_C.ddpm_transformer.n_layers = 4
+_C.ddpm_transformer.n_heads = 4
 _C.ddpm_transformer.query_dimensions = 64
 _C.ddpm_transformer.value_dimensions = 64
 _C.ddpm_transformer.feed_forward_dimensions = 2048
