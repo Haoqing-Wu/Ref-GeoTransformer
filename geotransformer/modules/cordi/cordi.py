@@ -12,6 +12,7 @@ class Cordi(Module):
         self.cfg = cfg
         self.ref_sample_num = cfg.ddpm.ref_sample_num
         self.src_sample_num = cfg.ddpm.src_sample_num
+        self.sample_topk = cfg.ddpm.sample_topk
         self.diffusion = DiffusionPoint(
             net = transformer(
                 n_layers=cfg.ddpm_transformer.n_layers,
@@ -99,9 +100,14 @@ class Cordi(Module):
         feats = d_dict.get('feat_matrix')
         feats = torch.unsqueeze(feats, dim=0).cuda()
         pred_corr_mat = self.diffusion.sample(mat_T, feats)
+        pred_corr = get_corr_from_matrix_topk(pred_corr_mat, self.sample_topk)
         return {
             'pred_corr_mat': pred_corr_mat,
-            'gt_corr_matrix': d_dict.get('gt_corr_matrix')
+            'pred_corr': pred_corr,
+            'gt_corr_matrix': d_dict.get('gt_corr_matrix'),
+            'gt_corr': d_dict.get('gt_corr'),
+            'ref_points': d_dict.get('ref_points'),
+            'src_points': d_dict.get('src_points')
             }
         
 

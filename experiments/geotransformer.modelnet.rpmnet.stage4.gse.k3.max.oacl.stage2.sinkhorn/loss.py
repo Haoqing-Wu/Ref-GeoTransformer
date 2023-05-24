@@ -167,22 +167,12 @@ class DDPMEvaluator(nn.Module):
         self.acceptance_rte = cfg.eval.rte_threshold
 
     @torch.no_grad()
-    def evaluate_coarse(self, output_dict):
-        ref_length_c = output_dict['ref_points_c'].shape[0]
-        src_length_c = output_dict['src_points_c'].shape[0]
-        gt_node_corr_overlaps = output_dict['gt_node_corr_overlaps']
-        gt_node_corr_indices = output_dict['gt_node_corr_indices']
-        masks = torch.gt(gt_node_corr_overlaps, self.acceptance_overlap)
-        gt_node_corr_indices = gt_node_corr_indices[masks]
-        gt_ref_node_corr_indices = gt_node_corr_indices[:, 0]
-        gt_src_node_corr_indices = gt_node_corr_indices[:, 1]
-        gt_node_corr_map = torch.zeros(ref_length_c, src_length_c).cuda()
-        gt_node_corr_map[gt_ref_node_corr_indices, gt_src_node_corr_indices] = 1.0
-
-        ref_node_corr_indices = output_dict['ref_node_corr_indices']
-        src_node_corr_indices = output_dict['src_node_corr_indices']
-
-        precision = gt_node_corr_map[ref_node_corr_indices, src_node_corr_indices].mean()
+    def evaluate_coarse(self, output_dict):   
+        gt_corr_matrix = (output_dict['gt_corr_matrix'] + 1) / 2
+        pred_corr = output_dict['pred_corr']
+        pred_ref_corr_indices = pred_corr[:, 0]
+        pred_src_corr_indices = pred_corr[:, 1]
+        precision = gt_corr_matrix[pred_ref_corr_indices, pred_src_corr_indices].mean()
 
         return precision
 
@@ -211,16 +201,8 @@ class DDPMEvaluator(nn.Module):
 
         return rre, rte, rmse, recall
 
-    def forward(self, output_dict, data_dict):
+    def forward(self, output_dict):
         c_precision = self.evaluate_coarse(output_dict)
-        f_precision = self.evaluate_fine(output_dict, data_dict)
-        rre, rte, rmse, recall = self.evaluate_registration(output_dict, data_dict)
-
         return {
-            'PIR': c_precision,
-            'IR': f_precision,
-            'RRE': rre,
-            'RTE': rte,
-            'RMSE': rmse,
-            'RR': recall,
+            'PIR': c_precision
         }

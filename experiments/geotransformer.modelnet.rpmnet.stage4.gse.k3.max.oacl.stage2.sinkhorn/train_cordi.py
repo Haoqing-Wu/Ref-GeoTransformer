@@ -15,7 +15,7 @@ from geotransformer.modules.cordi.cordi import create_cordi
 from config import make_cfg
 from dataset import train_valid_data_loader
 from model import create_model
-from loss import OverallLoss, Evaluator
+from loss import OverallLoss, DDPMEvaluator
 
 
 
@@ -54,8 +54,8 @@ class DDPMTrainer(IterBasedDDPMTrainer):
         self.register_scheduler(scheduler)
 
         # loss function, evaluator
-        self.loss_func = OverallLoss(cfg).cuda()
-        #self.evaluator = Evaluator(cfg).cuda()
+        # self.loss_func = OverallLoss(cfg).cuda()
+        self.evaluator = DDPMEvaluator(cfg).cuda()
 
     def train_step(self, iteration, data_dict):
         with torch.no_grad():
@@ -66,8 +66,8 @@ class DDPMTrainer(IterBasedDDPMTrainer):
     def val_step(self, iteration, data_dict):
         latent_dict = self.encoder_model(data_dict)
         output_dict = self.model.sample(latent_dict)
-        #result_dict = self.evaluator(output_dict)
-        return output_dict
+        result_dict = self.evaluator(output_dict)
+        return output_dict, result_dict
 
 def main():
     cfg = make_cfg()

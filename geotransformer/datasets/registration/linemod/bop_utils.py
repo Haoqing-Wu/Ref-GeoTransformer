@@ -246,7 +246,7 @@ def get_corr_from_matrix_topk(corr_matrix, k):
         [(i, j) for i, j in zip(ref_corr_indices, src_corr_indices)],
         dtype=np.int32,
     )
-    return corr
+    return corr, ref_corr_indices, src_corr_indices
 
 
 def gt_visualisation(src_pcd, tgt_pcd, trans, rot, corr):

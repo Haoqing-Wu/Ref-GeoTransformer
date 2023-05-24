@@ -292,7 +292,7 @@ class IterBasedDDPMTrainer(BaseTrainer):
             data_dict = to_cuda(data_dict)
             self.before_val_step(self.inner_iteration, data_dict)
             timer.add_prepare_time()
-            output_dict = self.val_step(self.inner_iteration, data_dict)
+            output_dict, result_dict = self.val_step(self.inner_iteration, data_dict)
             timer.add_process_time()
             self.after_val_step(self.inner_iteration, data_dict, output_dict, result_dict)
             result_dict = self.release_tensors(result_dict)

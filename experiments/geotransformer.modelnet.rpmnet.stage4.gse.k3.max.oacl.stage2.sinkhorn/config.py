@@ -139,6 +139,7 @@ _C.ddpm.beta_T = 0.02
 _C.ddpm.sched_mode = 'linear'
 _C.ddpm.ref_sample_num = 40
 _C.ddpm.src_sample_num = 80
+_C.ddpm.sample_topk = 32
 _C.ddpm.time_emb_dim = 256
 
 # model - DDPM - Transformer
