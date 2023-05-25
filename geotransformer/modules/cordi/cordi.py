@@ -99,7 +99,7 @@ class Cordi(Module):
         mat_T = torch.randn((1, self.ref_sample_num, self.src_sample_num)).cuda()
         feats = d_dict.get('feat_matrix')
         feats = torch.unsqueeze(feats, dim=0).cuda()
-        pred_corr_mat = self.diffusion.sample(mat_T, feats)
+        pred_corr_mat = self.diffusion.sample(mat_T, feats).cpu()
         pred_corr = get_corr_from_matrix_topk(pred_corr_mat, self.sample_topk)
         return {
             'pred_corr_mat': pred_corr_mat,

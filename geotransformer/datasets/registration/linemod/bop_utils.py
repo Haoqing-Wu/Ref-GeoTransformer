@@ -236,17 +236,17 @@ def focal_loss(y_true, y_pred, gamma=2):
     return focal_loss.numpy()
 
 def get_corr_from_matrix_topk(corr_matrix, k):
-    r"""Get the top k correspondences from a correspondence matrix.
+    r"""Get the top k correspondences from a correspondence matrix.[batch_size, tgt_len, src_len]
     Return correspondence indices [indices in ref_points, indices in src_points]
     """
     corr_indices = corr_matrix.view(-1).topk(k=k, largest=True)[1]
-    ref_corr_indices = corr_indices // corr_matrix.shape[1]
-    src_corr_indices = corr_indices % corr_matrix.shape[1]
+    ref_corr_indices = corr_indices // corr_matrix.shape[2]
+    src_corr_indices = corr_indices % corr_matrix.shape[2]
     corr = np.array(
         [(i, j) for i, j in zip(ref_corr_indices, src_corr_indices)],
         dtype=np.int32,
     )
-    return corr, ref_corr_indices, src_corr_indices
+    return corr
 
 
 def gt_visualisation(src_pcd, tgt_pcd, trans, rot, corr):

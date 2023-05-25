@@ -1,5 +1,5 @@
 import torch
-from torch.nn import Module, TransformerEncoder, TransformerEncoderLayer, Sequential, Linear, LayerNorm
+from torch.nn import Module, TransformerEncoder, TransformerEncoderLayer, Sequential, Linear, LayerNorm, ReLU
 
 
 class transformer(Module):
@@ -25,7 +25,12 @@ class transformer(Module):
             num_layers=n_layers
         )
         self.output_mlp = Sequential(
-            Linear(query_dimensions*n_heads, 1)
+            LayerNorm(query_dimensions*n_heads),
+            Linear(query_dimensions*n_heads, 64),
+            ReLU(),
+            Linear(64, 32),
+            ReLU(),
+            Linear(32, 1)
         )
 
         

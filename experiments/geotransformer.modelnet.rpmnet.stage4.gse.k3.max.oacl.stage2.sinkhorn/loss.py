@@ -160,7 +160,7 @@ class Evaluator(nn.Module):
 
 class DDPMEvaluator(nn.Module):
     def __init__(self, cfg):
-        super(Evaluator, self).__init__()
+        super(DDPMEvaluator, self).__init__()
         self.acceptance_overlap = cfg.eval.acceptance_overlap
         self.acceptance_radius = cfg.eval.acceptance_radius
         self.acceptance_rre = cfg.eval.rre_threshold

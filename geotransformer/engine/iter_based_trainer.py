@@ -305,7 +305,7 @@ class IterBasedDDPMTrainer(BaseTrainer):
             )
             pbar.set_description(message)
             torch.cuda.empty_cache()
-            if iteration == 100:
+            if iteration == 10:
                 # save the point cloud and corresponding prediction
                 # save_corr_pcd(output_dict)
                 break
