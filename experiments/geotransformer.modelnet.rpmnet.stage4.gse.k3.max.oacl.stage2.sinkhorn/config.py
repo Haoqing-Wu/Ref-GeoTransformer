@@ -21,12 +21,14 @@ _C.snapshot_encoder_dir = osp.join(_C.output_dir, "snapshots/encoder")
 _C.snapshot_ddpm_dir = osp.join(_C.output_dir, "snapshots/ddpm")
 _C.log_dir = osp.join(_C.output_dir, "logs")
 _C.event_dir = osp.join(_C.output_dir, "events")
+_C.result_dir = osp.join(_C.output_dir, "result")
 
 ensure_dir(_C.output_dir)
 ensure_dir(_C.snapshot_encoder_dir)
 ensure_dir(_C.snapshot_ddpm_dir)
 ensure_dir(_C.log_dir)
 ensure_dir(_C.event_dir)
+ensure_dir(_C.result_dir)
 
 # data
 _C.data = edict()
@@ -76,7 +78,7 @@ _C.optim.weight_decay = 1e-6
 _C.optim.warmup_steps = 10000
 _C.optim.eta_init = 0.1
 _C.optim.eta_min = 0.1
-_C.optim.max_iteration = 400000
+_C.optim.max_iteration = 200000
 _C.optim.snapshot_steps = 2000
 _C.optim.grad_acc_steps = 1
 
@@ -133,18 +135,19 @@ _C.fine_matching.num_refinement_steps = 5
 
 # model - DDPM
 _C.ddpm = edict()
+_C.ddpm.batch_size = 4
 _C.ddpm.num_steps = 100
 _C.ddpm.beta_1 = 1e-4
 _C.ddpm.beta_T = 0.02
 _C.ddpm.sched_mode = 'linear'
-_C.ddpm.ref_sample_num = 40
-_C.ddpm.src_sample_num = 80
+_C.ddpm.ref_sample_num = 60
+_C.ddpm.src_sample_num = 120
 _C.ddpm.sample_topk = 32
 _C.ddpm.time_emb_dim = 256
 
 # model - DDPM - Transformer
 _C.ddpm_transformer = edict()
-_C.ddpm_transformer.n_layers = 4
+_C.ddpm_transformer.n_layers = 8
 _C.ddpm_transformer.n_heads = 4
 _C.ddpm_transformer.query_dimensions = 64
 _C.ddpm_transformer.value_dimensions = 64

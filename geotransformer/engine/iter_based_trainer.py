@@ -235,6 +235,7 @@ class IterBasedDDPMTrainer(BaseTrainer):
         self.snapshot_steps = snapshot_steps
         self.snapshot_encoder_dir = cfg.snapshot_encoder_dir
         self.snapshot_ddpm_dir = cfg.snapshot_ddpm_dir
+        self.batch_size = cfg.ddpm.batch_size
 
     def before_train(self) -> None:
         pass
@@ -337,13 +338,18 @@ class IterBasedDDPMTrainer(BaseTrainer):
         self.before_train()
         self.optimizer.zero_grad()
         while self.iteration < self.max_iteration:
-            self.iteration += 1
-            data_dict = next(train_loader)
-            data_dict = to_cuda(data_dict)
+            batch_latent_data = []
+            for i in range(self.batch_size):
+                self.iteration += 1
+                data_dict = next(train_loader)
+                with torch.no_grad():
+                    latent_dict = self.encoder_model(to_cuda(data_dict))
+                batch_latent_data.append(latent_dict)
+            batch_latent_data = to_cuda(batch_latent_data)
             self.before_train_step(self.iteration, data_dict)
             self.timer.add_prepare_time()
             # forward
-            result_dict = self.train_step(self.iteration, data_dict)
+            result_dict = self.train_step(self.iteration, batch_latent_data)
             # backward & optimization
             result_dict['loss'].backward()
             self.after_backward(self.iteration, data_dict, result_dict)

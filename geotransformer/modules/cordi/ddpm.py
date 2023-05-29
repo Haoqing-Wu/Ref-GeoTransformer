@@ -106,7 +106,7 @@ class DiffusionPoint(Module):
         var = torch.var(e_theta)
         #wandb.log({"mean": mean.detach().cpu().numpy(), "var": var.detach().cpu().numpy()})
         
-        loss = F.mse_loss(e_theta.view(-1, point_dim), e_rand.view(-1, point_dim), reduction='mean')
+        loss = F.mse_loss(e_theta.reshape(-1), e_rand.reshape(-1), reduction='mean')
         return loss
     
     def get_x_t(self, x_0, t):

@@ -57,10 +57,8 @@ class DDPMTrainer(IterBasedDDPMTrainer):
         # self.loss_func = OverallLoss(cfg).cuda()
         self.evaluator = DDPMEvaluator(cfg).cuda()
 
-    def train_step(self, iteration, data_dict):
-        with torch.no_grad():
-            latent_dict = self.encoder_model(data_dict)
-        loss_dict = self.model.get_loss(latent_dict)
+    def train_step(self, iteration, batch_latent_data):
+        loss_dict = self.model.get_loss(batch_latent_data)
         return loss_dict
 
     def val_step(self, iteration, data_dict):

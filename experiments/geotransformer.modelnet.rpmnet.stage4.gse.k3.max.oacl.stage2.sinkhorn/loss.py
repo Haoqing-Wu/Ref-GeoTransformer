@@ -174,6 +174,12 @@ class DDPMEvaluator(nn.Module):
         pred_src_corr_indices = pred_corr[:, 1]
         precision = gt_corr_matrix[pred_ref_corr_indices, pred_src_corr_indices].mean()
 
+        # init_corr_matrix = (output_dict['init_corr_matrix'] + 1) / 2
+        # get the indices of reference and source points that have correspondences from init_corr_matrix
+        # init_ref_corr_indices = torch.nonzero(init_corr_matrix.sum(dim=1)).squeeze()
+        # init_src_corr_indices = torch.nonzero(init_corr_matrix.sum(dim=0)).squeeze()
+        # init_precision = gt_corr_matrix[init_ref_corr_indices, init_src_corr_indices].mean()
+
         return precision
 
     @torch.no_grad()
@@ -202,7 +208,8 @@ class DDPMEvaluator(nn.Module):
         return rre, rte, rmse, recall
 
     def forward(self, output_dict):
-        c_precision = self.evaluate_coarse(output_dict)
+        c_precision= self.evaluate_coarse(output_dict)
         return {
             'PIR': c_precision
+            #'IIR': init_precision
         }
