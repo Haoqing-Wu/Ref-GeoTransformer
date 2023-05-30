@@ -13,6 +13,8 @@ class Cordi(Module):
         self.ref_sample_num = cfg.ddpm.ref_sample_num
         self.src_sample_num = cfg.ddpm.src_sample_num
         self.sample_topk = cfg.ddpm.sample_topk
+        self.sample_topk_1_2 = cfg.ddpm.sample_topk_1_2
+        self.sample_topk_1_4 = cfg.ddpm.sample_topk_1_4
         self.diffusion = DiffusionPoint(
             net = transformer(
                 n_layers=cfg.ddpm_transformer.n_layers,
@@ -35,7 +37,7 @@ class Cordi(Module):
             )
         )
 
-    def downsample(self, batch_latent_data):
+    def downsample(self, batch_latent_data, slim=False):
         b_ref_points_sampled = []
         b_src_points_sampled = []
         b_ref_feats_sampled = []
@@ -119,6 +121,7 @@ class Cordi(Module):
         }
         return d_dict
     
+    
     def get_loss(self, batch_latent_data):
 
         d_dict = self.downsample(batch_latent_data)
@@ -135,9 +138,13 @@ class Cordi(Module):
         feats = d_dict.get('feat_matrix').cuda()
         pred_corr_mat = self.diffusion.sample(mat_T, feats).cpu()
         pred_corr = get_corr_from_matrix_topk(pred_corr_mat, self.sample_topk)
+        pred_corr_1_2 = get_corr_from_matrix_topk(pred_corr_mat, self.sample_topk_1_2)
+        pred_corr_1_4 = get_corr_from_matrix_topk(pred_corr_mat, self.sample_topk_1_4)
         return {
             'pred_corr_mat': pred_corr_mat,
             'pred_corr': pred_corr,
+            'pred_corr_1_2': pred_corr_1_2,
+            'pred_corr_1_4': pred_corr_1_4,
             'gt_corr_matrix': d_dict.get('gt_corr_matrix').squeeze(0),
             #'gt_corr': d_dict.get('gt_corr'),
             'init_corr_matrix': d_dict.get('init_corr_matrix').squeeze(0),
