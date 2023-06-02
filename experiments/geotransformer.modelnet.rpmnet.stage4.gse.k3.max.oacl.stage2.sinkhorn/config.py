@@ -73,12 +73,12 @@ _C.ransac.num_iterations = 1000
 
 # optim
 _C.optim = edict()
-_C.optim.lr = 2e-4
+_C.optim.lr = 1e-4
 _C.optim.weight_decay = 1e-6
 _C.optim.warmup_steps = 10000
 _C.optim.eta_init = 0.1
 _C.optim.eta_min = 0.1
-_C.optim.max_iteration = 200000
+_C.optim.max_iteration = 100000
 _C.optim.snapshot_steps = 2000
 _C.optim.grad_acc_steps = 1
 
@@ -135,7 +135,7 @@ _C.fine_matching.num_refinement_steps = 5
 
 # model - DDPM
 _C.ddpm = edict()
-_C.ddpm.batch_size = 8
+_C.ddpm.batch_size = 1
 _C.ddpm.num_steps = 100
 _C.ddpm.beta_1 = 1e-4
 _C.ddpm.beta_T = 0.02
@@ -145,12 +145,12 @@ _C.ddpm.src_sample_num = 80
 _C.ddpm.sample_topk = 32
 _C.ddpm.sample_topk_1_2 = 16
 _C.ddpm.sample_topk_1_4 = 8
-_C.ddpm.time_emb_dim = 256
+_C.ddpm.time_emb_dim = 512
 
 # model - DDPM - Transformer
 _C.ddpm_transformer = edict()
 _C.ddpm_transformer.n_layers = 8
-_C.ddpm_transformer.n_heads = 4
+_C.ddpm_transformer.n_heads = 8
 _C.ddpm_transformer.query_dimensions = 64
 _C.ddpm_transformer.value_dimensions = 64
 _C.ddpm_transformer.feed_forward_dimensions = 2048

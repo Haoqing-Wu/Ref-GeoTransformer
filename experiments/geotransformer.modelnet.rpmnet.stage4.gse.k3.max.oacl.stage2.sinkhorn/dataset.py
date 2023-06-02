@@ -123,7 +123,7 @@ def test_data_loader(cfg):
     # )
     train_dataset = LMODataset(
         data_folder='./data/',
-        reload_data=False,
+        reload_data=True,
         data_augmentation=True,
         rotated=False,
         rot_factor=1.0,
@@ -160,7 +160,7 @@ def test_data_loader(cfg):
     # )
     test_dataset = LMODataset(
         data_folder='./data/',
-        reload_data=False,
+        reload_data=True,
         data_augmentation=True,
         rotated=False,
         rot_factor=1.0,

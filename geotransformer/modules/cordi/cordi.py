@@ -86,12 +86,18 @@ class Cordi(Module):
             corr_matrix = torch.full((ref_points_sampled.shape[0], src_points_sampled.shape[0]),-1.0)
             for pair in gt_corr_sampled:
                 corr_matrix[pair[0], pair[1]] = 1.0
+            '''
             feat_matrix = torch.zeros((ref_points_sampled.shape[0], src_points_sampled.shape[0], 
                                     ref_feats_sampled.shape[1]))
             # add the features of ref_feats_sampled and src_feats_sampled
             for i in range(ref_points_sampled.shape[0]):
                 for j in range(src_points_sampled.shape[0]):
                     feat_matrix[i, j] = ref_feats_sampled[i] + src_feats_sampled[j]
+            '''
+            # concatinate the features of ref_feats_sampled and src_feats_sampled
+            feat_matrix = torch.cat([ref_feats_sampled.unsqueeze(1).repeat(1, src_feats_sampled.shape[0], 1),
+                                    src_feats_sampled.unsqueeze(0).repeat(ref_feats_sampled.shape[0], 1, 1)], dim=-1)
+            feat_matrix = feat_matrix.view(ref_points_sampled.shape[0], src_points_sampled.shape[0], -1)
             
             init_corr_matrix = torch.full((ref_points_sampled.shape[0], src_points_sampled.shape[0]),-1.0)
             for pair in init_corr_sampled:
@@ -133,8 +139,8 @@ class Cordi(Module):
     def sample(self, latent_dict):
         latent_dict = [latent_dict]
         d_dict = self.downsample(latent_dict)
-        #mat_T = torch.randn((1, self.ref_sample_num, self.src_sample_num)).cuda()
-        mat_T = d_dict.get('init_corr_matrix').cuda()
+        mat_T = torch.randn((1, self.ref_sample_num, self.src_sample_num)).cuda()
+        #mat_T = d_dict.get('init_corr_matrix').cuda()
         feats = d_dict.get('feat_matrix').cuda()
         pred_corr_mat = self.diffusion.sample(mat_T, feats).cpu()
         pred_corr = get_corr_from_matrix_topk(pred_corr_mat, self.sample_topk)
