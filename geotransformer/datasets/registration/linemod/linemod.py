@@ -128,13 +128,16 @@ class LMODataset(data.Dataset):
 
 
         model_files = list(Path(model_root).glob('*.ply'))
+        
         if self.overfit is not None:
-            obj_num = self.overfit
+            obj_num = 1
         else:
             obj_num = len(model_files)
         
         for obj_id in tqdm(range(obj_num)):
             
+            if self.overfit is not None:
+                obj_id = self.overfit
 
             model_path = str(model_files[obj_id])
 
@@ -199,9 +202,11 @@ class LMODataset(data.Dataset):
                     'rot': rot.astype(np.float32),
                     'trans': trans.astype(np.float32)
                 }
-                #for i in range (1000):
+                
                 data.append(frame_data)
-                #break
+            
+            if self.overfit is not None:
+                break
             
         with open(self.pickle_file, 'wb') as f:
             pickle.dump(data, f)
