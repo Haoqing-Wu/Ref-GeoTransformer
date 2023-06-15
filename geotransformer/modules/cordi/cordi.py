@@ -139,8 +139,8 @@ class Cordi(Module):
     def sample(self, latent_dict):
         latent_dict = [latent_dict]
         d_dict = self.downsample(latent_dict)
-        mat_T = torch.randn((1, self.ref_sample_num, self.src_sample_num)).cuda()
-        #mat_T = d_dict.get('init_corr_matrix').cuda()
+        #mat_T = torch.randn((1, self.ref_sample_num, self.src_sample_num)).cuda()
+        mat_T = d_dict.get('init_corr_matrix').cuda()
         feats = d_dict.get('feat_matrix').cuda()
         pred_corr_mat = self.diffusion.sample(mat_T, feats).cpu()
         pred_corr = get_corr_from_matrix_topk(pred_corr_mat, self.sample_topk)

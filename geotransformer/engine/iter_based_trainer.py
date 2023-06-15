@@ -112,8 +112,8 @@ class IterBasedEncoderTrainer(BaseTrainer):
         self.before_val()
         summary_board = SummaryBoard(adaptive=True)
         timer = Timer()
-        #total_iterations = len(self.val_loader)
-        total_iterations = 300
+        total_iterations = len(self.val_loader)
+        #total_iterations = 100
         pbar = tqdm.tqdm(enumerate(self.val_loader), total=total_iterations)
         for iteration, data_dict in pbar:
             self.inner_iteration = iteration + 1
@@ -121,6 +121,7 @@ class IterBasedEncoderTrainer(BaseTrainer):
             self.before_val_step(self.inner_iteration, data_dict)
             timer.add_prepare_time()
             output_dict, result_dict = self.val_step(self.inner_iteration, data_dict)
+            print(str(data_dict.get('obj_id')) + ' ' + str(data_dict.get('frame_id')) + str(result_dict.get('PIR')))
             timer.add_process_time()
             self.after_val_step(self.inner_iteration, data_dict, output_dict, result_dict)
             result_dict = self.release_tensors(result_dict)
@@ -133,10 +134,10 @@ class IterBasedEncoderTrainer(BaseTrainer):
             )
             pbar.set_description(message)
             torch.cuda.empty_cache()
-            if iteration == 300:
+            if iteration == 100:
                 # save the point cloud and corresponding prediction
                 save_corr_pcd(output_dict)
-                break 
+                #break 
 
         self.after_val()
         summary_dict = summary_board.summary()

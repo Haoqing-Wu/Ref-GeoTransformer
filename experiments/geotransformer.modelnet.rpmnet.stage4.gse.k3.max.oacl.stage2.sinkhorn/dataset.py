@@ -95,7 +95,7 @@ def train_valid_data_loader(cfg, distributed):
         neighbor_limits,
         batch_size=cfg.test.batch_size,
         num_workers=cfg.test.num_workers,
-        shuffle=True,
+        shuffle=False,
         distributed=distributed,
     )
 
@@ -178,7 +178,7 @@ def test_data_loader(cfg):
         neighbor_limits,
         batch_size=cfg.test.batch_size,
         num_workers=cfg.test.num_workers,
-        shuffle=False,
+        shuffle=True,
     )
 
     return test_loader, neighbor_limits
