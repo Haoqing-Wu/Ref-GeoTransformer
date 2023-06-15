@@ -113,7 +113,7 @@ class IterBasedEncoderTrainer(BaseTrainer):
         summary_board = SummaryBoard(adaptive=True)
         timer = Timer()
         #total_iterations = len(self.val_loader)
-        total_iterations = 50
+        total_iterations = 300
         pbar = tqdm.tqdm(enumerate(self.val_loader), total=total_iterations)
         for iteration, data_dict in pbar:
             self.inner_iteration = iteration + 1
@@ -133,10 +133,10 @@ class IterBasedEncoderTrainer(BaseTrainer):
             )
             pbar.set_description(message)
             torch.cuda.empty_cache()
-            if iteration == 50:
+            if iteration == 300:
                 # save the point cloud and corresponding prediction
                 save_corr_pcd(output_dict)
-                break
+                break 
 
         self.after_val()
         summary_dict = summary_board.summary()

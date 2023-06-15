@@ -43,6 +43,17 @@ _C.data.asymmetric = True
 _C.data.twice_sample = True
 _C.data.twice_transform = False
 
+# linemod
+_C.lmo = edict()
+_C.lmo.data_folder = './data/'
+_C.lmo.reload_data=True
+_C.lmo.data_augmentation=True
+_C.lmo.rotated=False
+_C.lmo.rot_factor=1.0
+_C.lmo.augment_noise=0.0005
+_C.lmo.points_limit=1000
+_C.lmo.overfit=6
+
 # train data
 _C.train = edict()
 _C.train.batch_size = 1
@@ -79,7 +90,7 @@ _C.optim.warmup_steps = 10000
 _C.optim.eta_init = 0.1
 _C.optim.eta_min = 0.1
 _C.optim.max_iteration = 100000
-_C.optim.snapshot_steps = 2000
+_C.optim.snapshot_steps = 1000
 _C.optim.grad_acc_steps = 1
 
 # model - backbone
@@ -104,9 +115,9 @@ _C.model.num_sinkhorn_iterations = 100
 
 # model - Coarse Matching
 _C.coarse_matching = edict()
-_C.coarse_matching.num_targets = 128
+_C.coarse_matching.num_targets = 64
 _C.coarse_matching.overlap_threshold = 0.1
-_C.coarse_matching.num_correspondences = 128
+_C.coarse_matching.num_correspondences = 64
 _C.coarse_matching.dual_normalization = True
 
 # model - GeoTransformer

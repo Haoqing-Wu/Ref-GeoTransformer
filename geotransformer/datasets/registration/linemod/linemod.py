@@ -137,7 +137,7 @@ class LMODataset(data.Dataset):
         for obj_id in tqdm(range(obj_num)):
             
             if self.overfit is not None:
-                obj_id = self.overfit
+                obj_id = self.overfit - 1
 
             model_path = str(model_files[obj_id])
 
