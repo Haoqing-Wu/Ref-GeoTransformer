@@ -46,13 +46,13 @@ _C.data.twice_transform = False
 # linemod
 _C.lmo = edict()
 _C.lmo.data_folder = './data/'
-_C.lmo.reload_data=True
+_C.lmo.reload_data=False
 _C.lmo.data_augmentation=True
 _C.lmo.rotated=False
 _C.lmo.rot_factor=1.0
-_C.lmo.augment_noise=0.0005
+_C.lmo.augment_noise=0.001
 _C.lmo.points_limit=1000
-_C.lmo.overfit=1
+_C.lmo.overfit=None
 
 # train data
 _C.train = edict()
@@ -90,7 +90,7 @@ _C.optim.warmup_steps = 10000
 _C.optim.eta_init = 0.1
 _C.optim.eta_min = 0.1
 _C.optim.max_iteration = 100000
-_C.optim.snapshot_steps = 20
+_C.optim.snapshot_steps = 2000
 _C.optim.grad_acc_steps = 1
 
 # model - backbone

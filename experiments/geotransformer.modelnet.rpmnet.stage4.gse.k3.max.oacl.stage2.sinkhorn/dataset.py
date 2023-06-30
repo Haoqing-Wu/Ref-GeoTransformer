@@ -78,7 +78,7 @@ def train_valid_data_loader(cfg, distributed):
     valid_dataset = LMODataset(
         data_folder=cfg.lmo.data_folder,
         reload_data=cfg.lmo.reload_data,
-        data_augmentation=cfg.lmo.data_augmentation,
+        data_augmentation=False,
         rotated=cfg.lmo.rotated,
         rot_factor=cfg.lmo.rot_factor,
         augment_noise=cfg.lmo.augment_noise,
@@ -95,7 +95,7 @@ def train_valid_data_loader(cfg, distributed):
         neighbor_limits,
         batch_size=cfg.test.batch_size,
         num_workers=cfg.test.num_workers,
-        shuffle=False,
+        shuffle=True,
         distributed=distributed,
     )
 

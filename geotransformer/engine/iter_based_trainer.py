@@ -112,8 +112,8 @@ class IterBasedEncoderTrainer(BaseTrainer):
         self.before_val()
         summary_board = SummaryBoard(adaptive=True)
         timer = Timer()
-        total_iterations = len(self.val_loader)
-        #total_iterations = 100
+        #total_iterations = len(self.val_loader)
+        total_iterations = 100
         pbar = tqdm.tqdm(enumerate(self.val_loader), total=total_iterations)
         for iteration, data_dict in pbar:
             self.inner_iteration = iteration + 1
@@ -137,7 +137,7 @@ class IterBasedEncoderTrainer(BaseTrainer):
             if iteration == 100:
                 # save the point cloud and corresponding prediction
                 save_corr_pcd(output_dict)
-                #break 
+                break 
 
         self.after_val()
         summary_dict = summary_board.summary()
