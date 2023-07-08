@@ -5,6 +5,7 @@ from geotransformer.utils.data import (
     calibrate_neighbors_stack_mode,
     build_dataloader_stack_mode,
 )
+import torch
 
 
 def train_valid_data_loader(cfg, distributed):
@@ -26,7 +27,7 @@ def train_valid_data_loader(cfg, distributed):
     #     return_normals=False,
     #     return_occupancy=True,
     # )
-    train_dataset = LMODataset(
+    dataset = LMODataset(
         data_folder='./data/',
         reload_data=True,
         data_augmentation=True,
@@ -35,7 +36,10 @@ def train_valid_data_loader(cfg, distributed):
         augment_noise=0.0005,
         points_limit=1000,
         mode='train',
-        overfit=1,
+        overfit=None,
+    )
+    train_dataset, valid_dataset = torch.utils.data.random_split(
+        dataset, [int(len(dataset) * 0.9), len(dataset) - int(len(dataset) * 0.9)]
     )
     neighbor_limits = calibrate_neighbors_stack_mode(
         train_dataset,
@@ -46,6 +50,18 @@ def train_valid_data_loader(cfg, distributed):
     )
     train_loader = build_dataloader_stack_mode(
         train_dataset,
+        registration_collate_fn_stack_mode,
+        cfg.backbone.num_stages,
+        cfg.backbone.init_voxel_size,
+        cfg.backbone.init_radius,
+        neighbor_limits,
+        batch_size=cfg.train.batch_size,
+        num_workers=cfg.train.num_workers,
+        shuffle=True,
+        distributed=distributed,
+    )
+    valid_loader = build_dataloader_stack_mode(
+        valid_dataset,
         registration_collate_fn_stack_mode,
         cfg.backbone.num_stages,
         cfg.backbone.init_voxel_size,
@@ -75,7 +91,7 @@ def train_valid_data_loader(cfg, distributed):
     #     return_normals=False,
     #     return_occupancy=True,
     # )
-    valid_dataset = LMODataset(
+    test_dataset = LMODataset(
         data_folder='./data/',
         reload_data=True,
         data_augmentation=True,
@@ -84,10 +100,10 @@ def train_valid_data_loader(cfg, distributed):
         augment_noise=0.0005,
         points_limit=1000,
         mode='test',
-        overfit=1,
+        overfit=None,
     )
-    valid_loader = build_dataloader_stack_mode(
-        valid_dataset,
+    test_loader = build_dataloader_stack_mode(
+        test_dataset,
         registration_collate_fn_stack_mode,
         cfg.backbone.num_stages,
         cfg.backbone.init_voxel_size,
@@ -99,7 +115,7 @@ def train_valid_data_loader(cfg, distributed):
         distributed=distributed,
     )
 
-    return train_loader, valid_loader, neighbor_limits
+    return train_loader, valid_loader, test_loader, neighbor_limits
 
 
 def test_data_loader(cfg):

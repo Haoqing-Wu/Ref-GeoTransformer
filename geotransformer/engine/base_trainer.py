@@ -103,6 +103,7 @@ class BaseTrainer(abc.ABC):
 
         self.train_loader = None
         self.val_loader = None
+        self.test_loader = None
         self.summary_board = SummaryBoard(last_n=self.log_steps, adaptive=True)
         self.timer = Timer()
         self.saved_states = {}
@@ -218,10 +219,11 @@ class BaseTrainer(abc.ABC):
         r"""Register LR scheduler."""
         self.scheduler = scheduler
 
-    def register_loader(self, train_loader, val_loader):
+    def register_loader(self, train_loader, val_loader, test_loader):
         r"""Register data loader."""
         self.train_loader = train_loader
         self.val_loader = val_loader
+        self.test_loader = test_loader
 
     def get_lr(self):
         return self.optimizer.param_groups[0]['lr']

@@ -107,7 +107,7 @@ class IterBasedEncoderTrainer(BaseTrainer):
             self.logger.error('Data_dict and model snapshot saved.')
             ipdb.set_trace()
 
-    def inference(self):
+    def inference_val(self):
         self.set_eval_mode()
         self.before_val()
         summary_board = SummaryBoard(adaptive=True)
@@ -145,9 +145,48 @@ class IterBasedEncoderTrainer(BaseTrainer):
         self.write_event('val', summary_dict, self.iteration // self.snapshot_steps)
         self.set_train_mode()
 
+    def inference_test(self):
+        self.set_eval_mode()
+        self.before_val()
+        summary_board = SummaryBoard(adaptive=True)
+        timer = Timer()
+        #total_iterations = len(self.test_loader)
+        total_iterations = 50
+        pbar = tqdm.tqdm(enumerate(self.test_loader), total=total_iterations)
+        for iteration, data_dict in pbar:
+            self.inner_iteration = iteration + 1
+            data_dict = to_cuda(data_dict)
+            self.before_val_step(self.inner_iteration, data_dict)
+            timer.add_prepare_time()
+            output_dict, result_dict = self.val_step(self.inner_iteration, data_dict)
+            timer.add_process_time()
+            self.after_val_step(self.inner_iteration, data_dict, output_dict, result_dict)
+            result_dict = self.release_tensors(result_dict)
+            summary_board.update_from_result_dict(result_dict)
+            message = get_log_string(
+                result_dict=summary_board.summary(),
+                iteration=self.inner_iteration,
+                max_iteration=total_iterations,
+                timer=timer,
+            )
+            pbar.set_description(message)
+            torch.cuda.empty_cache()
+            if iteration == 50:
+                # save the point cloud and corresponding prediction
+                #save_corr_pcd(output_dict)
+                break
+
+        self.after_val()
+        summary_dict = summary_board.summary()
+        message = '[Test] ' + get_log_string(summary_dict, iteration=self.iteration, timer=timer)
+        self.logger.critical(message)
+        self.write_event('test', summary_dict, self.iteration // self.snapshot_steps)
+        self.set_train_mode()
+
     def run(self):
         assert self.train_loader is not None
         assert self.val_loader is not None
+        assert self.test_loader is not None
 
         if self.args.resume:
             self.load_snapshot(osp.join(self.snapshot_encoder_dir, 'snapshot.pth.tar'))
@@ -199,7 +238,8 @@ class IterBasedEncoderTrainer(BaseTrainer):
                     last_snapshot = f'iter_{self.iteration - self.snapshot_steps}.pth.tar'
                     if osp.exists(last_snapshot):
                         os.remove(last_snapshot)
-                self.inference()
+                self.inference_val()
+                self.inference_test()
             # scheduler
             if self.scheduler is not None and self.iteration % self.grad_acc_steps == 0:
                 self.scheduler.step()
