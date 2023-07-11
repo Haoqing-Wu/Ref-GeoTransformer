@@ -79,7 +79,7 @@ class DiffusionPoint(Module):
         self.time_emb = time_emb
         self.num_steps = num_steps
 
-    def get_loss(self, x_0, ctx, t=None):
+    def get_loss(self, x_0, feat0, feat1, t=None):
         """
         Args:
             x_0:  Input point cloud, (B, N, d).
@@ -100,7 +100,7 @@ class DiffusionPoint(Module):
         e_rand = torch.randn_like(x_0)
         #e_theta = self.net(c0 * x_0 + c1 * e_rand, beta=beta, context_a=context_a, context_b=context_b)
         t = self.time_emb(t)
-        e_theta = self.net(c0 * x_0 + c1 * e_rand, t, ctx=ctx)
+        e_theta = self.net(c0 * x_0 + c1 * e_rand, t, feat0, feat1)
         # collect all elements in matrix e_theta and show as a histogram in wandb
         #wandb.log({"e_theta": wandb.Histogram(e_theta.detach().cpu().numpy())})
         # calculate the mean and variance of e_theta and show in wandb
@@ -126,8 +126,8 @@ class DiffusionPoint(Module):
         
         return x_t
 
-    def sample(self, x_T, ctx, context_b=None, flexibility=0.0, ret_traj=False):
-        batch_size = ctx.size(0)
+    def sample(self, x_T, feat0, feat1, flexibility=0.0, ret_traj=False):
+        batch_size = feat0.size(0)
         traj = {self.var_sched.num_steps: x_T}
         for t in range(self.var_sched.num_steps, 0, -1):
             z = torch.randn_like(x_T) if t > 1 else torch.zeros_like(x_T)
@@ -143,7 +143,7 @@ class DiffusionPoint(Module):
             beta = self.var_sched.betas[[t]*batch_size]
             t_ = torch.full((1,), t, device='cuda', dtype=torch.long)
             t_ = self.time_emb(t_)
-            e_theta = self.net(x_t, t_, ctx=ctx)
+            e_theta = self.net(x_t, t_, feat0, feat1)
             x_next = c0 * (x_t - c1 * e_theta) + sigma * z
             traj[t-1] = x_next.detach()     # Stop gradient and save trajectory.
             traj[t] = traj[t].cpu()         # Move previous output to CPU memory.

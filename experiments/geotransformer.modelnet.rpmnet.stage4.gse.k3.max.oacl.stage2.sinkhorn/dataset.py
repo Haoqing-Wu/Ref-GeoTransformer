@@ -33,7 +33,7 @@ def train_valid_data_loader(cfg, distributed):
         data_augmentation=True,
         rotated=False,
         rot_factor=1.0,
-        augment_noise=0.005,
+        augment_noise=0.0005,
         points_limit=1000,
         mode='train',
         overfit=1,

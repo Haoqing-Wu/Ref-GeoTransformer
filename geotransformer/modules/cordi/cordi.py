@@ -122,7 +122,7 @@ class Cordi(Module):
             'src_feats': torch.cat(b_src_feats_sampled, dim=0),
             #'gt_corr': torch.cat(b_gt_corr_sampled, dim=0),
             'gt_corr_matrix': torch.cat(b_corr_matrix, dim=0),
-            'feat_matrix': torch.cat(b_feat_matrix, dim=0),
+            #'feat_matrix': torch.cat(b_feat_matrix, dim=0),
             #'init_corr': torch.cat(b_init_corr_sampled, dim=0),
             'init_corr_matrix': torch.cat(b_init_corr_matrix , dim=0)
         }
@@ -133,8 +133,9 @@ class Cordi(Module):
 
         d_dict = self.downsample(batch_latent_data)
         mat = d_dict.get('gt_corr_matrix').cuda()
-        feats = d_dict.get('feat_matrix').cuda()
-        loss = self.diffusion.get_loss(mat, feats)
+        ref_feats = d_dict.get('ref_feats').cuda()
+        src_feats = d_dict.get('src_feats').cuda()
+        loss = self.diffusion.get_loss(mat, ref_feats, src_feats)
         return {'loss': loss}
     
     def sample(self, latent_dict):
@@ -142,8 +143,9 @@ class Cordi(Module):
         d_dict = self.downsample(latent_dict)
         #mat_T = torch.randn((1, self.ref_sample_num, self.src_sample_num)).cuda()
         mat_T = d_dict.get('init_corr_matrix').cuda()
-        feats = d_dict.get('feat_matrix').cuda()
-        pred_corr_mat = self.diffusion.sample(mat_T, feats).cpu()
+        ref_feats = d_dict.get('ref_feats').cuda()
+        src_feats = d_dict.get('src_feats').cuda()
+        pred_corr_mat = self.diffusion.sample(mat_T, ref_feats, src_feats).cpu()
         pred_corr = get_corr_from_matrix_topk(pred_corr_mat, self.sample_topk)
         pred_corr_1_2 = get_corr_from_matrix_topk(pred_corr_mat, self.sample_topk_1_2)
         pred_corr_1_4 = get_corr_from_matrix_topk(pred_corr_mat, self.sample_topk_1_4)
