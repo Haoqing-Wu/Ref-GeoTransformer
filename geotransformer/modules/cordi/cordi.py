@@ -34,7 +34,8 @@ class Cordi(Module):
                 nn.Linear(cfg.ddpm.time_emb_dim, 
                           cfg.ddpm_transformer.n_heads*cfg.ddpm_transformer.query_dimensions),
                 nn.ReLU()
-            )
+            ),
+            num_steps=cfg.ddpm.num_steps
         )
 
     def downsample(self, batch_latent_data, slim=False):

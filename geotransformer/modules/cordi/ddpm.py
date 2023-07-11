@@ -57,6 +57,7 @@ class SinusoidalPositionEmbeddings(Module):
     def __init__(self, dim):
         super().__init__()
         self.dim = dim
+        
 
     def forward(self, time):
         device = time.device
@@ -71,11 +72,12 @@ class SinusoidalPositionEmbeddings(Module):
 
 class DiffusionPoint(Module):
 
-    def __init__(self, net, var_sched:VarianceSchedule, time_emb):
+    def __init__(self, net, var_sched:VarianceSchedule, time_emb, num_steps):
         super().__init__()
         self.net = net
         self.var_sched = var_sched
         self.time_emb = time_emb
+        self.num_steps = num_steps
 
     def get_loss(self, x_0, ctx, t=None):
         """
@@ -86,7 +88,7 @@ class DiffusionPoint(Module):
         batch_size, _, point_dim = x_0.size()
         if t == None:
             #t = self.var_sched.uniform_sample_t(batch_size)
-            t = torch.randint(0, 100, (batch_size,), device='cuda').long()
+            t = torch.randint(0, self.num_steps, (batch_size,), device='cuda').long()
         
         alpha_bar = self.var_sched.alpha_bars[t]
         beta = self.var_sched.betas[t]

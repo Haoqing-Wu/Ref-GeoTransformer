@@ -97,14 +97,14 @@ class LMODataset(data.Dataset):
 
                 rot = np.matmul(rot_ab, rot)
                 trans = np.matmul(rot_ab, trans)
-            trans = trans.reshape(-1)
+        
             # add noise
             src_pcd += (np.random.rand(src_pcd.shape[0], 3) - 0.5) * self.augment_noise
             tgt_pcd += (np.random.rand(tgt_pcd.shape[0], 3) - 0.5) * self.augment_noise
         # init features
         src_feats = np.ones_like(src_pcd[:, :1])
         tgt_feats = np.ones_like(tgt_pcd[:, :1])
-
+        trans = trans.reshape(-1)
         transform = get_transform_from_rotation_translation(rot, trans)
 
 

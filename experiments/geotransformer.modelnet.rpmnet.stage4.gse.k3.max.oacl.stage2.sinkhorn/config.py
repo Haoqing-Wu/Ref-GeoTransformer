@@ -75,11 +75,11 @@ _C.ransac.num_iterations = 1000
 _C.optim = edict()
 _C.optim.lr = 1e-4
 _C.optim.weight_decay = 1e-6
-_C.optim.warmup_steps = 10000
+_C.optim.warmup_steps = 1000
 _C.optim.eta_init = 0.1
 _C.optim.eta_min = 0.1
-_C.optim.max_iteration = 100000
-_C.optim.snapshot_steps = 20
+_C.optim.max_iteration = 20000
+_C.optim.snapshot_steps = 1000
 _C.optim.grad_acc_steps = 1
 
 # model - backbone

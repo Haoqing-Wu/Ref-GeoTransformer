@@ -29,17 +29,19 @@ def train_valid_data_loader(cfg, distributed):
     # )
     dataset = LMODataset(
         data_folder='./data/',
-        reload_data=True,
+        reload_data=False,
         data_augmentation=True,
         rotated=False,
         rot_factor=1.0,
-        augment_noise=0.0005,
+        augment_noise=0.005,
         points_limit=1000,
         mode='train',
-        overfit=None,
+        overfit=1,
     )
     train_dataset, valid_dataset = torch.utils.data.random_split(
-        dataset, [int(len(dataset) * 0.9), len(dataset) - int(len(dataset) * 0.9)]
+        dataset, 
+        [int(len(dataset) * 0.9), len(dataset) - int(len(dataset) * 0.9)],
+        generator=torch.Generator().manual_seed(2023)
     )
     neighbor_limits = calibrate_neighbors_stack_mode(
         train_dataset,
@@ -93,14 +95,14 @@ def train_valid_data_loader(cfg, distributed):
     # )
     test_dataset = LMODataset(
         data_folder='./data/',
-        reload_data=True,
-        data_augmentation=True,
+        reload_data=False,
+        data_augmentation=False,
         rotated=False,
         rot_factor=1.0,
         augment_noise=0.0005,
         points_limit=1000,
         mode='test',
-        overfit=None,
+        overfit=1,
     )
     test_loader = build_dataloader_stack_mode(
         test_dataset,
@@ -111,7 +113,7 @@ def train_valid_data_loader(cfg, distributed):
         neighbor_limits,
         batch_size=cfg.test.batch_size,
         num_workers=cfg.test.num_workers,
-        shuffle=False,
+        shuffle=True,
         distributed=distributed,
     )
 
