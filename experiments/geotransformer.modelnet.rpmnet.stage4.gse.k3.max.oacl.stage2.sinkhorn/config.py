@@ -77,9 +77,9 @@ _C.optim.lr = 1e-4
 _C.optim.weight_decay = 1e-6
 _C.optim.warmup_steps = 1000
 _C.optim.eta_init = 0.1
-_C.optim.eta_min = 0.1
+_C.optim.eta_min = 0.01
 _C.optim.max_iteration = 20000
-_C.optim.snapshot_steps = 8000
+_C.optim.snapshot_steps = 2000
 _C.optim.grad_acc_steps = 1
 
 # model - backbone

@@ -129,13 +129,13 @@ class LMODataset(data.Dataset):
 
         model_files = list(Path(model_root).glob('*.ply'))
         if self.overfit is not None:
-            obj_num = self.overfit
+            obj_num = 1
         else:
             obj_num = len(model_files)
         
         for obj_id in tqdm(range(obj_num)):
             
-
+            obj_id = self.overfit - 1
             model_path = str(model_files[obj_id])
 
             src_pcd_, _ = sample_point_from_mesh(model_path, samples=10000)

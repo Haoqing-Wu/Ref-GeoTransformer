@@ -170,19 +170,28 @@ class DDPMEvaluator(nn.Module):
     def evaluate_coarse(self, output_dict):   
         gt_corr_matrix = (output_dict['gt_corr_matrix'] + 1) / 2
         pred_corr = output_dict['pred_corr']
-        pred_ref_corr_indices = pred_corr[:, 0]
-        pred_src_corr_indices = pred_corr[:, 1]
-        precision = gt_corr_matrix[pred_ref_corr_indices, pred_src_corr_indices].mean()
+        if len(pred_corr) < 1:
+            precision = 0.0
+        else:
+            pred_ref_corr_indices = pred_corr[:, 0]
+            pred_src_corr_indices = pred_corr[:, 1]
+            precision = gt_corr_matrix[pred_ref_corr_indices, pred_src_corr_indices].mean()
 
         pred_corr_1_2 = output_dict['pred_corr_1_2']
-        pred_ref_corr_indices_1_2 = pred_corr_1_2[:, 0]
-        pred_src_corr_indices_1_2 = pred_corr_1_2[:, 1]
-        precision_1_2 = gt_corr_matrix[pred_ref_corr_indices_1_2, pred_src_corr_indices_1_2].mean()
+        if len(pred_corr_1_2) < 1:
+            precision_1_2 = 0.0
+        else:
+            pred_ref_corr_indices_1_2 = pred_corr_1_2[:, 0]
+            pred_src_corr_indices_1_2 = pred_corr_1_2[:, 1]
+            precision_1_2 = gt_corr_matrix[pred_ref_corr_indices_1_2, pred_src_corr_indices_1_2].mean()
 
         pred_corr_1_4 = output_dict['pred_corr_1_4']
-        pred_ref_corr_indices_1_4 = pred_corr_1_4[:, 0]
-        pred_src_corr_indices_1_4 = pred_corr_1_4[:, 1]
-        precision_1_4 = gt_corr_matrix[pred_ref_corr_indices_1_4, pred_src_corr_indices_1_4].mean()
+        if len(pred_corr_1_4) < 1:
+            precision_1_4 = 0.0
+        else:
+            pred_ref_corr_indices_1_4 = pred_corr_1_4[:, 0]
+            pred_src_corr_indices_1_4 = pred_corr_1_4[:, 1]
+            precision_1_4 = gt_corr_matrix[pred_ref_corr_indices_1_4, pred_src_corr_indices_1_4].mean()
 
         init_corr_matrix = (output_dict['init_corr_matrix'] + 1) / 2
         init_ref_corr_indices = []
@@ -197,7 +206,8 @@ class DDPMEvaluator(nn.Module):
             # compute the mean of the correspondences
         init_precision = gt_corr_matrix[init_ref_corr_indices, init_src_corr_indices].mean()
 
-        return precision, precision_1_2, precision_1_4, init_precision
+        corr_num = output_dict['init_corr_num']
+        return precision, precision_1_2, precision_1_4, init_precision, corr_num
 
     @torch.no_grad()
     def evaluate_fine(self, output_dict, data_dict):
@@ -225,10 +235,11 @@ class DDPMEvaluator(nn.Module):
         return rre, rte, rmse, recall
 
     def forward(self, output_dict):
-        c_precision, c_precision_1_2, c_precision_1_4, init_precision = self.evaluate_coarse(output_dict)
+        c_precision, c_precision_1_2, c_precision_1_4, init_precision, corr_num = self.evaluate_coarse(output_dict)
         return {
             'PIR': c_precision,
             'PIR_0.5': c_precision_1_2,
             'PIR_0.25': c_precision_1_4,
-            'IIR': init_precision
+            'IIR': init_precision, 
+            'Corr_num': corr_num
         }

@@ -1,6 +1,6 @@
 import torch
 from torch.nn import Module, TransformerEncoder, TransformerEncoderLayer, Sequential, Linear, LayerNorm, ReLU
-
+from geotransformer.modules.transformer.vanilla_transformer import TransformerLayer
 
 class transformer(Module):
     # Build a transformer encoder
@@ -32,17 +32,36 @@ class transformer(Module):
             ReLU(),
             Linear(32, 1)
         )
+        self.feature_cross_attension = TransformerLayer(
+            d_model=256, num_heads=8, dropout=None, activation_fn='ReLU'
+        )
+        self.feature_output_mlp = Sequential(
+            LayerNorm(256),
+            Linear(256, 512),
+        )
 
     def feature_fusion_cat(self, feat0, feat1):
         feat_matrix = torch.cat([feat0.unsqueeze(2).repeat(1, 1, feat1.shape[1], 1),
                                     feat1.unsqueeze(1).repeat(1, feat0.shape[1], 1, 1)], dim=-1)
         feat_matrix = feat_matrix.view(feat0.shape[0], feat0.shape[1], feat1.shape[1], -1)
         return feat_matrix
+    
+    def feature_fusion_cross_attention(self, feat0, feat1):
+        feat0 = feat0.squeeze(0)
+        feat1 = feat1.squeeze(0)
+        feat0 = feat0.unsqueeze(1).repeat(1, feat1.shape[0], 1)
+        feat1 = feat1.unsqueeze(0).repeat(feat0.shape[0], 1, 1)
+        feat_matrix0, _ = self.feature_cross_attension(feat0, feat1)
+        feat_matrix1, _ = self.feature_cross_attension(feat1, feat0)
+        feat_matrix = torch.cat([feat_matrix0, feat_matrix1], dim=-1)
+        feat_matrix = feat_matrix.unsqueeze(0)
+        return feat_matrix
 
         
     def forward(self, x_t, t, feat0, feat1):
         
         ctx = self.feature_fusion_cat(feat0, feat1)
+        #ctx = self.feature_fusion_cross_attention(feat0, feat1)
         x = x_t.unsqueeze(-1) + ctx
         x = torch.reshape(x, (x.shape[0], -1, x.shape[-1]))
         t_seq = t.unsqueeze(1)

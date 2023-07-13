@@ -48,6 +48,7 @@ class Cordi(Module):
         b_feat_matrix = []
         b_init_corr_sampled = []
         b_init_corr_matrix = []
+        b_init_corr_num = []
         for latent_dict in batch_latent_data:
             # Get the required data from the latent dictionary
             ref_points = latent_dict.get('ref_points_c')
@@ -62,8 +63,8 @@ class Cordi(Module):
 
             
             # Randomly sample points from ref and src with length of ref_sample_num and src_sample_num
-            ref_sample_indices = np.random.choice(ref_points.shape[0], self.ref_sample_num, replace=False)
-            src_sample_indices = np.random.choice(src_points.shape[0], self.src_sample_num, replace=False)
+            ref_sample_indices = np.random.choice(ref_points.shape[0], int(ref_points.shape[0]*0.8), replace=False)
+            src_sample_indices = np.random.choice(src_points.shape[0], int(src_points.shape[0]*0.8), replace=False)
 
             # Get gt_corr for sampled points
             gt_corr_sampled = []
@@ -113,18 +114,19 @@ class Cordi(Module):
             b_feat_matrix.append(feat_matrix.unsqueeze(0))
             #b_init_corr_sampled.append(torch.tensor(init_corr_sampled))
             b_init_corr_matrix.append(init_corr_matrix.unsqueeze(0))
-
+            b_init_corr_num.append(len(init_corr_sampled))
 
         d_dict = {
             'ref_points': torch.cat(b_ref_points_sampled, dim=0),
-            'src_points': torch.cat(b_src_points_sampled, dim= 0),
+            'src_points': torch.cat(b_src_points_sampled, dim=0),
             'ref_feats': torch.cat(b_ref_feats_sampled, dim=0),
             'src_feats': torch.cat(b_src_feats_sampled, dim=0),
             #'gt_corr': torch.cat(b_gt_corr_sampled, dim=0),
             'gt_corr_matrix': torch.cat(b_corr_matrix, dim=0),
             #'feat_matrix': torch.cat(b_feat_matrix, dim=0),
             #'init_corr': torch.cat(b_init_corr_sampled, dim=0),
-            'init_corr_matrix': torch.cat(b_init_corr_matrix , dim=0)
+            'init_corr_matrix': torch.cat(b_init_corr_matrix , dim=0),
+            'init_corr_num': b_init_corr_num
         }
         return d_dict
     
@@ -146,9 +148,10 @@ class Cordi(Module):
         ref_feats = d_dict.get('ref_feats').cuda()
         src_feats = d_dict.get('src_feats').cuda()
         pred_corr_mat = self.diffusion.sample(mat_T, ref_feats, src_feats).cpu()
-        pred_corr = get_corr_from_matrix_topk(pred_corr_mat, self.sample_topk)
-        pred_corr_1_2 = get_corr_from_matrix_topk(pred_corr_mat, self.sample_topk_1_2)
-        pred_corr_1_4 = get_corr_from_matrix_topk(pred_corr_mat, self.sample_topk_1_4)
+        init_corr_num = d_dict.get('init_corr_num')[0]
+        pred_corr = get_corr_from_matrix_topk(pred_corr_mat, int(init_corr_num))
+        pred_corr_1_2 = get_corr_from_matrix_topk(pred_corr_mat, int(init_corr_num/2))
+        pred_corr_1_4 = get_corr_from_matrix_topk(pred_corr_mat, int(init_corr_num/4))
         return {
             'pred_corr_mat': pred_corr_mat,
             'pred_corr': pred_corr,
@@ -157,6 +160,7 @@ class Cordi(Module):
             'gt_corr_matrix': d_dict.get('gt_corr_matrix').squeeze(0),
             #'gt_corr': d_dict.get('gt_corr'),
             'init_corr_matrix': d_dict.get('init_corr_matrix').squeeze(0),
+            'init_corr_num': init_corr_num,
             #'init_corr': d_dict.get('init_corr'),
             'ref_points': d_dict.get('ref_points').squeeze(0),
             'src_points': d_dict.get('src_points').squeeze(0),
