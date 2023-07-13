@@ -12,6 +12,8 @@ class Cordi(Module):
         self.cfg = cfg
         self.ref_sample_num = cfg.ddpm.ref_sample_num
         self.src_sample_num = cfg.ddpm.src_sample_num
+        self.adaptive_size = cfg.ddpm.adaptive_size
+        self.size_factor = cfg.ddpm.size_factor
         self.sample_topk = cfg.ddpm.sample_topk
         self.sample_topk_1_2 = cfg.ddpm.sample_topk_1_2
         self.sample_topk_1_4 = cfg.ddpm.sample_topk_1_4
@@ -63,8 +65,13 @@ class Cordi(Module):
 
             
             # Randomly sample points from ref and src with length of ref_sample_num and src_sample_num
-            ref_sample_indices = np.random.choice(ref_points.shape[0], int(ref_points.shape[0]*0.8), replace=False)
-            src_sample_indices = np.random.choice(src_points.shape[0], int(src_points.shape[0]*0.8), replace=False)
+            if self.adaptive_size:
+                ref_sample_indices = np.random.choice(ref_points.shape[0], int(ref_points.shape[0]*self.size_factor), replace=False)
+                src_sample_indices = np.random.choice(src_points.shape[0], int(src_points.shape[0]*self.size_factor), replace=False)
+            else:
+                ref_sample_indices = np.random.choice(ref_points.shape[0], self.ref_sample_num, replace=False)
+                src_sample_indices = np.random.choice(src_points.shape[0], self.src_sample_num, replace=False)
+
 
             # Get gt_corr for sampled points
             gt_corr_sampled = []
@@ -144,6 +151,7 @@ class Cordi(Module):
         latent_dict = [latent_dict]
         d_dict = self.downsample(latent_dict)
         #mat_T = torch.randn((1, self.ref_sample_num, self.src_sample_num)).cuda()
+        #mat_T = torch.randn_like(d_dict.get('init_corr_matrix')).cuda()
         mat_T = d_dict.get('init_corr_matrix').cuda()
         ref_feats = d_dict.get('ref_feats').cuda()
         src_feats = d_dict.get('src_feats').cuda()
