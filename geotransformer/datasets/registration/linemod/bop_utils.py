@@ -3,6 +3,7 @@ import cv2
 import torch
 import open3d as o3d
 import numpy as np
+import math
 from scipy.spatial import cKDTree
 from typing import Optional
 #from focal_loss.focal_loss import FocalLoss
@@ -73,6 +74,31 @@ def get_gt(gt_file, frame_id):
     rot = np.array(gt['cam_R_m2c']).reshape(3, 3)
     trans = np.array(gt['cam_t_m2c']) / 1000
     return rot, trans
+
+def rot_vec_to_trigo(rot_vec):
+    rot_trigo = np.zeros([3, 2])
+    for i in range(3):
+        rot_trigo[i, 0] = math.cos(rot_vec[i])
+        rot_trigo[i, 1] = math.sin(rot_vec[i])
+    
+    return rot_trigo
+
+def trigo_to_rot_vec(rot_trigo):
+    for key, value in enumerate(rot_trigo):
+        if value >= 1.0:
+            rot_trigo[key] = 1.0
+        if value <= -1.0:
+            rot_trigo[key] = -1.0
+    a1 = math.acos(rot_trigo[0])
+    a2 = math.asin(rot_trigo[1])
+    a3 = math.atan(rot_trigo[1]/rot_trigo[0])
+    b1 = math.acos(rot_trigo[2])
+    b2 = math.asin(rot_trigo[3])
+    b3 = math.atan(rot_trigo[3]/rot_trigo[2])
+    c1 = math.acos(rot_trigo[4])
+    c2 = math.asin(rot_trigo[5])
+    c3 = math.atan(rot_trigo[5]/rot_trigo[4])
+    return [a1, a2, a3, b1, b2, b3, c1, c2, c3]
 
 def get_camera_info(cam_file, frame_id):
     r"""Get camera intrinsics from a camera file.

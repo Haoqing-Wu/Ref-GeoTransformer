@@ -63,8 +63,8 @@ class DDPMTrainer(IterBasedDDPMTrainer):
 
     def val_step(self, iteration, data_dict):
         latent_dict = self.encoder_model(data_dict)
-        output_dict = self.model.sample(latent_dict)
-        result_dict = self.evaluator(output_dict)
+        output_dict = self.model.sample(latent_dict, data_dict)
+        result_dict = self.evaluator(output_dict, data_dict)
         return output_dict, result_dict
 
 def main():

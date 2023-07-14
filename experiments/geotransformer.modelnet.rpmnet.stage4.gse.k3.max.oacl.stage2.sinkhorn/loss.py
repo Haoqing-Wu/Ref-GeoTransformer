@@ -1,9 +1,12 @@
 import torch
 import torch.nn as nn
+import numpy as np
 
 from geotransformer.modules.ops import apply_transform, pairwise_distance
 from geotransformer.modules.loss import WeightedCircleLoss
 from geotransformer.modules.registration.metrics import isotropic_transform_error
+from scipy.spatial.transform import Rotation
+from geotransformer.datasets.registration.linemod.bop_utils import *
 
 
 class CoarseMatchingLoss(nn.Module):
@@ -221,25 +224,22 @@ class DDPMEvaluator(nn.Module):
 
     @torch.no_grad()
     def evaluate_registration(self, output_dict, data_dict):
-        transform = data_dict['transform']
-        est_transform = output_dict['estimated_transform']
-        src_points = output_dict['src_points']
+        transform = data_dict['transform'].cpu()
+        rot_vec = output_dict['rot_vec']
+        trans = output_dict['trans']
+        rot = Rotation.from_rotvec(np.array([rot_vec[2], rot_vec[5], rot_vec[8]])).as_matrix()
+        est_transform = torch.from_numpy(get_transform_from_rotation_translation(rot, trans).astype(np.float32))
 
         rre, rte = isotropic_transform_error(transform, est_transform)
         recall = torch.logical_and(torch.lt(rre, self.acceptance_rre), torch.lt(rte, self.acceptance_rte)).float()
 
-        gt_src_points = apply_transform(src_points, transform)
-        est_src_points = apply_transform(src_points, est_transform)
-        rmse = torch.linalg.norm(est_src_points - gt_src_points, dim=1).mean()
 
-        return rre, rte, rmse, recall
+        return rre, rte, recall
 
-    def forward(self, output_dict):
-        c_precision, c_precision_1_2, c_precision_1_4, init_precision, corr_num = self.evaluate_coarse(output_dict)
+    def forward(self, output_dict, data_dict):
+        rre, rte, recall = self.evaluate_registration(output_dict, data_dict)
         return {
-            'PIR': c_precision,
-            'PIR_0.5': c_precision_1_2,
-            'PIR_0.25': c_precision_1_4,
-            'IIR': init_precision, 
-            'Corr_num': corr_num
+            'rre': rre,
+            'rte': rte,
+            'recall': recall,
         }

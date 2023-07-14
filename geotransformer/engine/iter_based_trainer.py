@@ -348,7 +348,7 @@ class IterBasedDDPMTrainer(BaseTrainer):
             torch.cuda.empty_cache()
             if iteration == 20:
                 # save the point cloud and corresponding prediction
-                save_corr_pcd_ddpm(output_dict)
+                #save_corr_pcd_ddpm(output_dict)
                 break
 
         self.after_val()
@@ -427,6 +427,7 @@ class IterBasedDDPMTrainer(BaseTrainer):
             self.before_train_step(self.iteration, data_dict)
             self.timer.add_prepare_time()
             # forward
+
             result_dict = self.train_step(self.iteration, batch_latent_data)
             # backward & optimization
             result_dict['loss'].backward()

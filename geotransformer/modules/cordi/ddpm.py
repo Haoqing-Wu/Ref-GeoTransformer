@@ -85,7 +85,7 @@ class DiffusionPoint(Module):
             x_0:  Input point cloud, (B, N, d).
             context:  Shape latent, (B, F).
         """
-        batch_size, _, point_dim = x_0.size()
+        batch_size, _ = x_0.size()
         if t == None:
             #t = self.var_sched.uniform_sample_t(batch_size)
             t = torch.randint(0, self.num_steps, (batch_size,), device='cuda').long()
@@ -93,8 +93,8 @@ class DiffusionPoint(Module):
         alpha_bar = self.var_sched.alpha_bars[t]
         beta = self.var_sched.betas[t]
 
-        c0 = torch.sqrt(alpha_bar).view(-1, 1, 1)       # (B, 1, 1)
-        c1 = torch.sqrt(1 - alpha_bar).view(-1, 1, 1)   # (B, 1, 1)
+        c0 = torch.sqrt(alpha_bar).view(-1, 1)       # (B, 1, 1)
+        c1 = torch.sqrt(1 - alpha_bar).view(-1, 1)   # (B, 1, 1)
         #torch.manual_seed(1001)
         #e_rand = torch.randn_like(x_0, memory_format=torch.contiguous_format)  # (B, N, d)
         e_rand = torch.randn_like(x_0)

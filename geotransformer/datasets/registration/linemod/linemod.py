@@ -104,8 +104,11 @@ class LMODataset(data.Dataset):
         # init features
         src_feats = np.ones_like(src_pcd[:, :1])
         tgt_feats = np.ones_like(tgt_pcd[:, :1])
+        rot_vec = Rotation.from_matrix(rot).as_rotvec()
+        rot_trigo = rot_vec_to_trigo(rot_vec).reshape(-1)
         trans = trans.reshape(-1)
         transform = get_transform_from_rotation_translation(rot, trans)
+        pose = np.concatenate((rot_trigo, trans), axis=None)
 
 
         
@@ -115,6 +118,7 @@ class LMODataset(data.Dataset):
             'src_points': src_pcd.astype(np.float32),
             'ref_points': tgt_pcd.astype(np.float32),
             'transform': transform.astype(np.float32),
+            'pose': pose.astype(np.float32),
             'src_feats': src_feats.astype(np.float32),
             'ref_feats': tgt_feats.astype(np.float32)    
         }

@@ -73,6 +73,9 @@ class GeoTransformer(nn.Module):
         feats = data_dict['features'].detach()
         transform = data_dict['transform'].detach()
 
+        gt_pose = data_dict['pose'].detach()
+        output_dict['gt_pose'] = gt_pose
+
         ref_length_c = data_dict['lengths'][-1][0].item()
         ref_length_f = data_dict['lengths'][0][0].item()
         ref_length = data_dict['lengths'][0][0].item()

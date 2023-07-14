@@ -141,30 +141,34 @@ class Cordi(Module):
     def get_loss(self, batch_latent_data):
 
         d_dict = self.downsample(batch_latent_data)
+        gt_pose = batch_latent_data[0].get('gt_pose').unsqueeze(0)
         mat = d_dict.get('gt_corr_matrix').cuda()
         ref_feats = d_dict.get('ref_feats').cuda()
         src_feats = d_dict.get('src_feats').cuda()
-        loss = self.diffusion.get_loss(mat, ref_feats, src_feats)
+        loss = self.diffusion.get_loss(gt_pose, ref_feats, src_feats)
         return {'loss': loss}
     
-    def sample(self, latent_dict):
+    def sample(self, latent_dict, data_dict):
         latent_dict = [latent_dict]
         d_dict = self.downsample(latent_dict)
         #mat_T = torch.randn((1, self.ref_sample_num, self.src_sample_num)).cuda()
-        #mat_T = torch.randn_like(d_dict.get('init_corr_matrix')).cuda()
-        mat_T = d_dict.get('init_corr_matrix').cuda()
+        mat_T = torch.randn_like(data_dict.get('pose')).cuda()
+        #mat_T = d_dict.get('init_corr_matrix').cuda()
         ref_feats = d_dict.get('ref_feats').cuda()
         src_feats = d_dict.get('src_feats').cuda()
-        pred_corr_mat = self.diffusion.sample(mat_T, ref_feats, src_feats).cpu()
+        pred_pose = self.diffusion.sample(mat_T, ref_feats, src_feats).cpu().squeeze(0)
         init_corr_num = d_dict.get('init_corr_num')[0]
-        pred_corr = get_corr_from_matrix_topk(pred_corr_mat, int(init_corr_num))
-        pred_corr_1_2 = get_corr_from_matrix_topk(pred_corr_mat, int(init_corr_num/2))
-        pred_corr_1_4 = get_corr_from_matrix_topk(pred_corr_mat, int(init_corr_num/4))
+        # Get pose from output
+        rot_trigo = pred_pose[:6]
+        trans = pred_pose[6:]
+        rot_vec = trigo_to_rot_vec(rot_trigo)
+
+
+
+
         return {
-            'pred_corr_mat': pred_corr_mat,
-            'pred_corr': pred_corr,
-            'pred_corr_1_2': pred_corr_1_2,
-            'pred_corr_1_4': pred_corr_1_4,
+            'rot_vec': rot_vec,
+            'trans': trans,
             'gt_corr_matrix': d_dict.get('gt_corr_matrix').squeeze(0),
             #'gt_corr': d_dict.get('gt_corr'),
             'init_corr_matrix': d_dict.get('init_corr_matrix').squeeze(0),

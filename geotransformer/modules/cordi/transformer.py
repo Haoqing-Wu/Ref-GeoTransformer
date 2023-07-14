@@ -40,10 +40,9 @@ class transformer(Module):
             Linear(256, 512),
         )
 
-    def feature_fusion_cat(self, feat0, feat1):
-        feat_matrix = torch.cat([feat0.unsqueeze(2).repeat(1, 1, feat1.shape[1], 1),
-                                    feat1.unsqueeze(1).repeat(1, feat0.shape[1], 1, 1)], dim=-1)
-        feat_matrix = feat_matrix.view(feat0.shape[0], feat0.shape[1], feat1.shape[1], -1)
+    def feature_fusion_cat(self, feat0, feat1, pose, t):
+        feat_matrix = torch.cat([pose.unsqueeze(-1).repeat(1, 1, 256),feat0, feat1, t.unsqueeze(1)], dim=1)
+        
         return feat_matrix
     
     def feature_fusion_cross_attention(self, feat0, feat1):
@@ -60,16 +59,11 @@ class transformer(Module):
         
     def forward(self, x_t, t, feat0, feat1):
         
-        ctx = self.feature_fusion_cat(feat0, feat1)
-        #ctx = self.feature_fusion_cross_attention(feat0, feat1)
-        x = x_t.unsqueeze(-1) + ctx
-        x = torch.reshape(x, (x.shape[0], -1, x.shape[-1]))
-        t_seq = t.unsqueeze(1)
-        x = torch.cat([x, t_seq], dim=1)
+        x = self.feature_fusion_cat(feat0, feat1, x_t, t)
         x = self.transformer_encoder(x)
         x = self.output_mlp(x)
-        x = x[:, :-1, :]
-        x = torch.reshape(x, (x.shape[0], -1, x_t.shape[-1]))
+        x = x[:, :9, :]
+        x = x.squeeze(-1)
         return x
 
 if __name__ == "__main__":
