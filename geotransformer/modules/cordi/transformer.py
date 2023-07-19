@@ -41,7 +41,7 @@ class transformer(Module):
             Linear(256, 512),
         )
         self.vanilla_transformer = VanillaTETransformer(
-            blocks=["self", "cross", "self", "cross", "self", "cross", "self", "cross"],
+            blocks=["self", "cross", "self", "cross"],
             d_model=query_dimensions*n_heads,
             num_heads=n_heads,
             dropout=0.1,
@@ -69,13 +69,15 @@ class transformer(Module):
     def forward(self, x_t, t, feat0, feat1):
         
         ctx = self.feature_fusion_cat(feat0, feat1)
+        ctx = torch.reshape(ctx, (ctx.shape[0], -1, ctx.shape[-1]))
         #ctx = self.feature_fusion_cross_attention(feat0, feat1)
-        x = x_t.unsqueeze(-1) + ctx
+        x = x_t.unsqueeze(-1).repeat(1, 1, 1, ctx.shape[-1])
         x = torch.reshape(x, (x.shape[0], -1, x.shape[-1]))
         t_seq = t.unsqueeze(1)
         #x = torch.cat([x, t_seq], dim=1)
         #x = self.transformer_encoder(x)
-        x = self.vanilla_transformer(x, t_seq)
+        ctx = torch.cat([ctx, t_seq], dim=1)
+        x = self.vanilla_transformer(x, ctx)
         x = self.output_mlp(x)
         #x = x[:, :-1, :]
         x = torch.reshape(x, (x.shape[0], -1, x_t.shape[-1]))
