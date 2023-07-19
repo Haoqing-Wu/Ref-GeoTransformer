@@ -128,6 +128,41 @@ class TransformerLayer(nn.Module):
         output_states = self.output(hidden_states)
         return output_states, attention_scores
 
+class TransformerTELayer(nn.Module):
+    def __init__(self, d_model, num_heads, dropout=None, activation_fn='ReLU'):
+        super(TransformerTELayer, self).__init__()
+        self.attention0 = AttentionLayer(d_model, num_heads, dropout=dropout)
+        self.attention1 = AttentionLayer(d_model, num_heads, dropout=dropout)
+        self.output = AttentionOutput(d_model, dropout=dropout, activation_fn=activation_fn)
+
+    def forward(
+        self,
+        input_states,
+        memory_states,
+        memory_weights=None,
+        memory_masks=None,
+        attention_factors=None,
+        attention_masks=None,
+    ):
+        hidden_states, attention_scores = self.attention0(
+            input_states,
+            input_states,
+            memory_weights=memory_weights,
+            memory_masks=memory_masks,
+            attention_factors=attention_factors,
+            attention_masks=attention_masks,
+        )
+        hidden_states, attention_scores = self.attention1(
+            hidden_states,
+            memory_states,
+            memory_weights=memory_weights,
+            memory_masks=memory_masks,
+            attention_factors=attention_factors,
+            attention_masks=attention_masks,
+        )
+        output_states = self.output(hidden_states)
+        return output_states, attention_scores
+
 
 class TransformerDecoderLayer(nn.Module):
     def __init__(self, d_model, num_heads, dropout=None, activation_fn='ReLU'):

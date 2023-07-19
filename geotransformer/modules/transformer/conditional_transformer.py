@@ -3,7 +3,7 @@ import torch.nn as nn
 from geotransformer.modules.transformer.lrpe_transformer import LRPETransformerLayer
 from geotransformer.modules.transformer.pe_transformer import PETransformerLayer
 from geotransformer.modules.transformer.rpe_transformer import RPETransformerLayer
-from geotransformer.modules.transformer.vanilla_transformer import TransformerLayer
+from geotransformer.modules.transformer.vanilla_transformer import TransformerLayer, TransformerTELayer
 
 
 def _check_block_type(block):
@@ -37,6 +37,29 @@ class VanillaConditionalTransformer(nn.Module):
             return feats0, feats1, attention_scores
         else:
             return feats0, feats1
+
+class VanillaTETransformer(nn.Module):
+    def __init__(self, blocks, d_model, num_heads, dropout=None, activation_fn='ReLU', return_attention_scores=False):
+        super(VanillaTETransformer, self).__init__()
+        self.blocks = blocks
+        layers = []
+        for block in self.blocks:
+            _check_block_type(block)
+            layers.append(TransformerTELayer(d_model, num_heads, dropout=dropout, activation_fn=activation_fn))
+        self.layers = nn.ModuleList(layers)
+        self.return_attention_scores = return_attention_scores
+
+    def forward(self, feats0, feats1, masks0=None, masks1=None):
+        attention_scores = []
+        for i, block in enumerate(self.blocks):
+            feats0, scores0 = self.layers[i](feats0, feats1, memory_masks=masks0)
+            
+            if self.return_attention_scores:
+                attention_scores.append(scores0)
+        if self.return_attention_scores:
+            return feats0, attention_scores
+        else:
+            return feats0
 
 
 class PEConditionalTransformer(nn.Module):

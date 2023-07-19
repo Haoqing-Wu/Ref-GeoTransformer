@@ -1,6 +1,7 @@
 import torch
 from torch.nn import Module, TransformerEncoder, TransformerEncoderLayer, Sequential, Linear, LayerNorm, ReLU
 from geotransformer.modules.transformer.vanilla_transformer import TransformerLayer
+from geotransformer.modules.transformer import VanillaTETransformer
 
 class transformer(Module):
     # Build a transformer encoder
@@ -39,6 +40,13 @@ class transformer(Module):
             LayerNorm(256),
             Linear(256, 512),
         )
+        self.vanilla_transformer = VanillaTETransformer(
+            blocks=["self", "cross", "self", "cross", "self", "cross", "self", "cross"],
+            d_model=query_dimensions*n_heads,
+            num_heads=n_heads,
+            dropout=0.1,
+            activation_fn='ReLU'
+        )
 
     def feature_fusion_cat(self, feat0, feat1):
         feat_matrix = torch.cat([feat0.unsqueeze(2).repeat(1, 1, feat1.shape[1], 1),
@@ -65,10 +73,11 @@ class transformer(Module):
         x = x_t.unsqueeze(-1) + ctx
         x = torch.reshape(x, (x.shape[0], -1, x.shape[-1]))
         t_seq = t.unsqueeze(1)
-        x = torch.cat([x, t_seq], dim=1)
-        x = self.transformer_encoder(x)
+        #x = torch.cat([x, t_seq], dim=1)
+        #x = self.transformer_encoder(x)
+        x = self.vanilla_transformer(x, t_seq)
         x = self.output_mlp(x)
-        x = x[:, :-1, :]
+        #x = x[:, :-1, :]
         x = torch.reshape(x, (x.shape[0], -1, x_t.shape[-1]))
         return x
 

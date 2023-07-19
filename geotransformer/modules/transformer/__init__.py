@@ -3,6 +3,7 @@ from geotransformer.modules.transformer.conditional_transformer import (
     PEConditionalTransformer,
     RPEConditionalTransformer,
     LRPEConditionalTransformer,
+    VanillaTETransformer,
 )
 from geotransformer.modules.transformer.lrpe_transformer import LRPETransformerLayer
 from geotransformer.modules.transformer.pe_transformer import PETransformerLayer
@@ -16,4 +17,5 @@ from geotransformer.modules.transformer.vanilla_transformer import (
     TransformerDecoderLayer,
     TransformerEncoder,
     TransformerDecoder,
+    TransformerTELayer
 )

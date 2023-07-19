@@ -73,7 +73,7 @@ _C.ransac.num_iterations = 1000
 
 # optim
 _C.optim = edict()
-_C.optim.lr = 1e-4
+_C.optim.lr = 1e-5
 _C.optim.weight_decay = 1e-6
 _C.optim.warmup_steps = 1000
 _C.optim.eta_init = 0.1
@@ -143,7 +143,7 @@ _C.ddpm.sched_mode = 'linear'
 _C.ddpm.ref_sample_num = 40
 _C.ddpm.src_sample_num = 80
 _C.ddpm.adaptive_size = True
-_C.ddpm.size_factor = 0.8
+_C.ddpm.size_factor = 0.3
 _C.ddpm.sample_topk = 32
 _C.ddpm.sample_topk_1_2 = 16
 _C.ddpm.sample_topk_1_4 = 8
