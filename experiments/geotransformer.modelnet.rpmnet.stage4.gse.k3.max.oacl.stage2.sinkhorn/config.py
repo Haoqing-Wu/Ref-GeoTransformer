@@ -107,6 +107,8 @@ _C.coarse_matching = edict()
 _C.coarse_matching.num_targets = 128
 _C.coarse_matching.overlap_threshold = 0.1
 _C.coarse_matching.num_correspondences = 128
+_C.coarse_matching.num_correspondences_m = 32
+_C.coarse_matching.num_correspondences_s = 16
 _C.coarse_matching.dual_normalization = True
 
 # model - GeoTransformer

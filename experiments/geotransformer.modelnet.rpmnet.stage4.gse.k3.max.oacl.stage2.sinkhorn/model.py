@@ -51,6 +51,12 @@ class GeoTransformer(nn.Module):
         self.coarse_matching = SuperPointMatching(
             cfg.coarse_matching.num_correspondences, cfg.coarse_matching.dual_normalization
         )
+        self.coarse_matching_m = SuperPointMatching(
+            cfg.coarse_matching.num_correspondences_m, cfg.coarse_matching.dual_normalization
+        )
+        self.coarse_matching_s = SuperPointMatching(
+            cfg.coarse_matching.num_correspondences_s, cfg.coarse_matching.dual_normalization
+        )
 
         self.fine_matching = LocalGlobalRegistration(
             cfg.fine_matching.topk,
@@ -158,6 +164,20 @@ class GeoTransformer(nn.Module):
 
             output_dict['ref_node_corr_indices'] = ref_node_corr_indices
             output_dict['src_node_corr_indices'] = src_node_corr_indices
+
+            ref_node_corr_indices_m, src_node_corr_indices_m, _ = self.coarse_matching_m(
+                ref_feats_c_norm, src_feats_c_norm, ref_node_masks, src_node_masks
+            )
+
+            output_dict['ref_node_corr_indices_m'] = ref_node_corr_indices_m
+            output_dict['src_node_corr_indices_m'] = src_node_corr_indices_m
+
+            ref_node_corr_indices_s, src_node_corr_indices_s, _ = self.coarse_matching_s(
+                ref_feats_c_norm, src_feats_c_norm, ref_node_masks, src_node_masks
+            )
+
+            output_dict['ref_node_corr_indices_s'] = ref_node_corr_indices_s
+            output_dict['src_node_corr_indices_s'] = src_node_corr_indices_s
 
             # 7 Random select ground truth node correspondences during training
             if self.training:

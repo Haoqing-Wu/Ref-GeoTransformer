@@ -158,8 +158,8 @@ class Cordi(Module):
         pred_corr_mat = self.diffusion.sample(mat_T, ref_feats, src_feats).cpu()
         init_corr_num = d_dict.get('init_corr_num')[0]
         pred_corr = get_corr_from_matrix_topk(pred_corr_mat, int(init_corr_num))
-        pred_corr_1_2 = get_corr_from_matrix_topk(pred_corr_mat, int(init_corr_num/2))
-        pred_corr_1_4 = get_corr_from_matrix_topk(pred_corr_mat, int(init_corr_num/4))
+        pred_corr_1_2 = get_corr_from_matrix_topk(pred_corr_mat, 32)
+        pred_corr_1_4 = get_corr_from_matrix_topk(pred_corr_mat, 16)
         return {
             'pred_corr_mat': pred_corr_mat,
             'pred_corr': pred_corr,

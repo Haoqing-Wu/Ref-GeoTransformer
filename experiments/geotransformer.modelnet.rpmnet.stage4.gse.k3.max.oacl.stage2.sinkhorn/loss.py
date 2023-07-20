@@ -167,6 +167,36 @@ class DDPMEvaluator(nn.Module):
         self.acceptance_rte = cfg.eval.rte_threshold
 
     @torch.no_grad()
+    def evaluate_coarse_geotransformer(self, output_dict):
+        ref_length_c = output_dict['ref_points_c'].shape[0]
+        src_length_c = output_dict['src_points_c'].shape[0]
+        gt_node_corr_overlaps = output_dict['gt_node_corr_overlaps']
+        gt_node_corr_indices = output_dict['gt_node_corr_indices']
+        masks = torch.gt(gt_node_corr_overlaps, self.acceptance_overlap)
+        gt_node_corr_indices = gt_node_corr_indices[masks]
+        gt_ref_node_corr_indices = gt_node_corr_indices[:, 0]
+        gt_src_node_corr_indices = gt_node_corr_indices[:, 1]
+        gt_node_corr_map = torch.zeros(ref_length_c, src_length_c).cuda()
+        gt_node_corr_map[gt_ref_node_corr_indices, gt_src_node_corr_indices] = 1.0
+
+        ref_node_corr_indices = output_dict['ref_node_corr_indices']
+        src_node_corr_indices = output_dict['src_node_corr_indices']
+
+        precision = gt_node_corr_map[ref_node_corr_indices, src_node_corr_indices].mean()
+
+        ref_node_corr_indices_m = output_dict['ref_node_corr_indices_m']
+        src_node_corr_indices_m = output_dict['src_node_corr_indices_m']
+
+        precision_m = gt_node_corr_map[ref_node_corr_indices_m, src_node_corr_indices_m].mean()
+
+        ref_node_corr_indices_s = output_dict['ref_node_corr_indices_s']
+        src_node_corr_indices_s = output_dict['src_node_corr_indices_s']
+
+        precision_s = gt_node_corr_map[ref_node_corr_indices_s, src_node_corr_indices_s].mean()
+
+        return precision, precision_m, precision_s
+
+    @torch.no_grad()
     def evaluate_coarse(self, output_dict):   
         gt_corr_matrix = (output_dict['gt_corr_matrix'] + 1) / 2
         pred_corr = output_dict['pred_corr']
@@ -234,12 +264,16 @@ class DDPMEvaluator(nn.Module):
 
         return rre, rte, rmse, recall
 
-    def forward(self, output_dict):
+    def forward(self, output_dict, latent_dict):
         c_precision, c_precision_1_2, c_precision_1_4, init_precision, corr_num = self.evaluate_coarse(output_dict)
+        geo_precision, geo_precision_m, geo_precision_s = self.evaluate_coarse_geotransformer(latent_dict)
         return {
             'PIR': c_precision,
-            'PIR_0.5': c_precision_1_2,
-            'PIR_0.25': c_precision_1_4,
+            'PIR_M': c_precision_1_2,
+            'PIR_S': c_precision_1_4,
             'IIR': init_precision, 
-            'Corr_num': corr_num
+            'Corr_num': corr_num,
+            'GIR': geo_precision,
+            'GIR_M': geo_precision_m,
+            'GIR_S': geo_precision_s
         }
