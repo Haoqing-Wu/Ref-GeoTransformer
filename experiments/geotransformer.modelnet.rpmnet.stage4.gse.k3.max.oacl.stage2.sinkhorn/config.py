@@ -75,17 +75,17 @@ _C.ransac.num_iterations = 1000
 _C.optim = edict()
 _C.optim.lr = 1e-4
 _C.optim.weight_decay = 1e-6
-_C.optim.warmup_steps = 1000
+_C.optim.warmup_steps = 10000
 _C.optim.eta_init = 0.1
-_C.optim.eta_min = 0.01
-_C.optim.max_iteration = 20000
+_C.optim.eta_min = 0.1
+_C.optim.max_iteration = 200000
 _C.optim.snapshot_steps = 2000
 _C.optim.grad_acc_steps = 1
 
 # model - backbone
 _C.backbone = edict()
 _C.backbone.num_stages = 3
-_C.backbone.init_voxel_size = 0.003
+_C.backbone.init_voxel_size = 0.05
 _C.backbone.kernel_size = 15
 _C.backbone.base_radius = 3.0
 _C.backbone.base_sigma = 2.0
@@ -98,7 +98,7 @@ _C.backbone.output_dim = 256
 
 # model - Global
 _C.model = edict()
-_C.model.ground_truth_matching_radius = 0.005
+_C.model.ground_truth_matching_radius = 0.05
 _C.model.num_points_in_patch = 128
 _C.model.num_sinkhorn_iterations = 100
 

@@ -235,6 +235,20 @@ def focal_loss(y_true, y_pred, gamma=2):
     focal_loss = criterion(y_pred, y_true)
     return focal_loss.numpy()
 
+def normalize_points(src, tgt, rot, trans):
+    r"""Normalize point cloud to a unit sphere at origin."""
+
+    src_factor = np.max(np.linalg.norm(src, axis=1))
+    src = src / src_factor
+    
+    inv_rot = rot.T
+    inv_trans = -np.matmul(inv_rot, trans)
+    tgt = transformation_pcd(tgt, inv_rot, inv_trans)
+    tgt = tgt / src_factor
+    tgt = transformation_pcd(tgt, rot, trans)
+
+    return src, tgt
+
 def get_corr_from_matrix_topk(corr_matrix, k):
     r"""Get the top k correspondences from a correspondence matrix.[batch_size, tgt_len, src_len]
     Return correspondence indices [indices in ref_points, indices in src_points]
@@ -535,4 +549,35 @@ def save_corr_pcd_ddpm(output_dict):
     o3d.io.write_line_set("./output/geotransformer.modelnet.rpmnet.stage4.gse.k3.max.oacl.stage2.sinkhorn/result/line_outlier.ply", line_outlier)
 
     
+def test_normalize_pcd(tgt_pcd, src_pcd, rot, trans):
+    src_pcd_trans = transformation_pcd(src_pcd, rot, trans)
+
+    src_pcd_trans_plt = o3d.geometry.PointCloud()
+    src_pcd_trans_plt.points = o3d.utility.Vector3dVector(src_pcd_trans)
+    o3d.io.write_point_cloud("./output/geotransformer.modelnet.rpmnet.stage4.gse.k3.max.oacl.stage2.sinkhorn/result/test_src_trans.ply", src_pcd_trans_plt)
+
+    src_pcd_plt = o3d.geometry.PointCloud()
+    src_pcd_plt.points = o3d.utility.Vector3dVector(src_pcd)
+    o3d.io.write_point_cloud("./output/geotransformer.modelnet.rpmnet.stage4.gse.k3.max.oacl.stage2.sinkhorn/result/test_src.ply", src_pcd_plt)
+
+    tgt_pcd_plt = o3d.geometry.PointCloud()
+    tgt_pcd_plt.points = o3d.utility.Vector3dVector(tgt_pcd)
+    o3d.io.write_point_cloud("./output/geotransformer.modelnet.rpmnet.stage4.gse.k3.max.oacl.stage2.sinkhorn/result/test_tgt.ply", tgt_pcd_plt)
+
+    #src_pcd = np.add(src_pcd, trans.T)
+    src_pcd_norm, tgt_pcd_norm = normalize_points(src_pcd, tgt_pcd, rot, trans)
+
+    src_pcd_norm_trans = transformation_pcd(src_pcd_norm, rot, trans)
+
+    src_pcd_norm_trans_plt = o3d.geometry.PointCloud()
+    src_pcd_norm_trans_plt.points = o3d.utility.Vector3dVector(src_pcd_norm_trans)
+    o3d.io.write_point_cloud("./output/geotransformer.modelnet.rpmnet.stage4.gse.k3.max.oacl.stage2.sinkhorn/result/test_src_norm_trans.ply", src_pcd_norm_trans_plt)
+
+    src_pcd_norm_plt = o3d.geometry.PointCloud()
+    src_pcd_norm_plt.points = o3d.utility.Vector3dVector(src_pcd_norm)
+    o3d.io.write_point_cloud("./output/geotransformer.modelnet.rpmnet.stage4.gse.k3.max.oacl.stage2.sinkhorn/result/test_norm_src.ply", src_pcd_norm_plt)
+
+    tgt_pcd_norm_plt = o3d.geometry.PointCloud()
+    tgt_pcd_norm_plt.points = o3d.utility.Vector3dVector(tgt_pcd_norm)
+    o3d.io.write_point_cloud("./output/geotransformer.modelnet.rpmnet.stage4.gse.k3.max.oacl.stage2.sinkhorn/result/test_norm_tgt.ply", tgt_pcd_norm_plt)
 

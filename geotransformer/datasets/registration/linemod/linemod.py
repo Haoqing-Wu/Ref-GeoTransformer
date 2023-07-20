@@ -135,7 +135,8 @@ class LMODataset(data.Dataset):
         
         for obj_id in tqdm(range(obj_num)):
             
-            obj_id = self.overfit - 1
+            if self.overfit is not None:
+                obj_id = self.overfit - 1
             model_path = str(model_files[obj_id])
 
             src_pcd_, _ = sample_point_from_mesh(model_path, samples=10000)
@@ -190,6 +191,7 @@ class LMODataset(data.Dataset):
                 #src_pcd = sort_pcd_from_center(src_pcd)
                 #tgt_pcd = sort_pcd_from_center(tgt_pcd)
 
+                src_pcd, tgt_pcd = normalize_points(src_pcd, tgt_pcd, rot, trans)
 
                 frame_data = {
                     'obj_id': int(obj_id),
