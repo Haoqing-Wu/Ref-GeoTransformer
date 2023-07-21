@@ -69,6 +69,10 @@ class Cordi(Module):
                 ref_sample_indices = np.random.choice(ref_points.shape[0], int(ref_points.shape[0]*self.size_factor), replace=False)
                 src_sample_indices = np.random.choice(src_points.shape[0], int(src_points.shape[0]*self.size_factor), replace=False)
             else:
+                if self.ref_sample_num >= ref_points.shape[0]:
+                    self.ref_sample_num = ref_points.shape[0]
+                if self.src_sample_num >= src_points.shape[0]:
+                    self.src_sample_num = src_points.shape[0]
                 ref_sample_indices = np.random.choice(ref_points.shape[0], self.ref_sample_num, replace=False)
                 src_sample_indices = np.random.choice(src_points.shape[0], self.src_sample_num, replace=False)
 
