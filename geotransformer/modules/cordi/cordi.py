@@ -155,8 +155,8 @@ class Cordi(Module):
         latent_dict = [latent_dict]
         d_dict = self.downsample(latent_dict)
         #mat_T = torch.randn((1, self.ref_sample_num, self.src_sample_num)).cuda()
-        #mat_T = torch.randn_like(d_dict.get('init_corr_matrix')).cuda()
-        mat_T = d_dict.get('init_corr_matrix').cuda()
+        mat_T = torch.randn_like(d_dict.get('init_corr_matrix')).cuda()
+        #mat_T = d_dict.get('init_corr_matrix').cuda()
         ref_feats = d_dict.get('ref_feats').cuda()
         src_feats = d_dict.get('src_feats').cuda()
         pred_corr_mat = self.diffusion.sample(mat_T, ref_feats, src_feats).cpu()
@@ -164,11 +164,20 @@ class Cordi(Module):
         pred_corr = get_corr_from_matrix_topk(pred_corr_mat, int(init_corr_num))
         pred_corr_1_2 = get_corr_from_matrix_topk(pred_corr_mat, 32)
         pred_corr_1_4 = get_corr_from_matrix_topk(pred_corr_mat, 16)
+        pred_corr_0_9, num_corr_0_9 = get_corr_from_matrix_gt(pred_corr_mat, 0.9, 1.1)
+        pred_corr_0_95, num_corr_0_95 = get_corr_from_matrix_gt(pred_corr_mat, 0.95, 1.05)
+        pred_corr_1, num_corr_1 = get_corr_from_matrix_gt(pred_corr_mat, 0.98, 1.02)
         return {
             'pred_corr_mat': pred_corr_mat,
             'pred_corr': pred_corr,
             'pred_corr_1_2': pred_corr_1_2,
             'pred_corr_1_4': pred_corr_1_4,
+            'pred_corr_0_9': pred_corr_0_9,
+            'pred_corr_0_95': pred_corr_0_95,
+            'pred_corr_1': pred_corr_1,
+            'num_corr_0_9': num_corr_0_9,
+            'num_corr_0_95': num_corr_0_95,
+            'num_corr_1': num_corr_1,
             'gt_corr_matrix': d_dict.get('gt_corr_matrix').squeeze(0),
             #'gt_corr': d_dict.get('gt_corr'),
             'init_corr_matrix': d_dict.get('init_corr_matrix').squeeze(0),

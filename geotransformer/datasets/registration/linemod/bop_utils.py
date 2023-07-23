@@ -262,6 +262,19 @@ def get_corr_from_matrix_topk(corr_matrix, k):
     )
     return corr
 
+def get_corr_from_matrix_gt(corr_matrix, low, high):
+    r"""Get the between threshold correspondences from a correspondence matrix.[batch_size, tgt_len, src_len]
+    Return correspondence indices [indices in ref_points, indices in src_points]
+    """
+    
+    corr_indices = np.where((corr_matrix >= low))
+    ref_corr_indices = corr_indices[1]
+    src_corr_indices = corr_indices[2]
+    corr = np.array(
+        [(i, j) for i, j in zip(ref_corr_indices, src_corr_indices)],
+        dtype=np.int32,
+    )
+    return corr, len(ref_corr_indices)
 
 def gt_visualisation(src_pcd, tgt_pcd, trans, rot, corr):
     r"""Visualise the ground truth correspondences between two point clouds.
