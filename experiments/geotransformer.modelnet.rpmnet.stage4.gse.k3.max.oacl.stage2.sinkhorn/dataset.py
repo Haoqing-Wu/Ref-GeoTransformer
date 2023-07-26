@@ -36,7 +36,7 @@ def train_valid_data_loader(cfg, distributed):
         augment_noise=0.05,
         points_limit=1000,
         mode='train',
-        overfit=6,
+        overfit=None,
     )
     train_dataset, valid_dataset = torch.utils.data.random_split(
         dataset, 
@@ -102,7 +102,7 @@ def train_valid_data_loader(cfg, distributed):
         augment_noise=0.05,
         points_limit=1000,
         mode='test',
-        overfit=6,
+        overfit=None,
     )
     test_loader = build_dataloader_stack_mode(
         test_dataset,

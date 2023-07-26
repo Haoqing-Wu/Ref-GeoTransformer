@@ -88,7 +88,7 @@ class DiffusionPoint(Module):
         batch_size, _, point_dim = x_0.size()
         if t == None:
             #t = self.var_sched.uniform_sample_t(batch_size)
-            t = torch.randint(0, self.num_steps, (batch_size,), device='cuda').long()
+            t = torch.randint(1, self.num_steps+1, (batch_size,), device='cuda').long()
         
         alpha_bar = self.var_sched.alpha_bars[t]
         beta = self.var_sched.betas[t]

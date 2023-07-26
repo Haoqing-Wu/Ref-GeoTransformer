@@ -75,11 +75,11 @@ _C.ransac.num_iterations = 1000
 _C.optim = edict()
 _C.optim.lr = 1e-4
 _C.optim.weight_decay = 1e-6
-_C.optim.warmup_steps = 2000
+_C.optim.warmup_steps = 5000
 _C.optim.eta_init = 0.1
-_C.optim.eta_min = 0.01
-_C.optim.max_iteration = 50000
-_C.optim.snapshot_steps = 2000
+_C.optim.eta_min = 0.001
+_C.optim.max_iteration = 150000
+_C.optim.snapshot_steps = 5000
 _C.optim.grad_acc_steps = 1
 
 # model - backbone
@@ -138,7 +138,7 @@ _C.fine_matching.num_refinement_steps = 5
 # model - DDPM
 _C.ddpm = edict()
 _C.ddpm.batch_size = 1
-_C.ddpm.num_steps = 500
+_C.ddpm.num_steps = 300
 _C.ddpm.beta_1 = 1e-4
 _C.ddpm.beta_T = 0.02
 _C.ddpm.sched_mode = 'linear'
@@ -153,7 +153,7 @@ _C.ddpm.time_emb_dim = 512
 
 # model - DDPM - Transformer
 _C.ddpm_transformer = edict()
-_C.ddpm_transformer.n_layers = 8
+_C.ddpm_transformer.n_layers = 10
 _C.ddpm_transformer.n_heads = 8
 _C.ddpm_transformer.query_dimensions = 64
 _C.ddpm_transformer.value_dimensions = 64
