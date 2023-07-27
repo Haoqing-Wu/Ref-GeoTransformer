@@ -51,6 +51,7 @@ class Cordi(Module):
         b_init_corr_sampled = []
         b_init_corr_matrix = []
         b_init_corr_num = []
+        b_gt_corr_score_matrix_sampled = []
         for latent_dict in batch_latent_data:
             # Get the required data from the latent dictionary
             ref_points = latent_dict.get('ref_points_c')
@@ -60,6 +61,7 @@ class Cordi(Module):
             gt_corr = latent_dict.get('gt_node_corr_indices')
             init_ref_corr_indices = latent_dict.get('ref_node_corr_indices').unsqueeze(-1)
             init_src_corr_indices = latent_dict.get('src_node_corr_indices').unsqueeze(-1)
+            gt_corr_score_matrix = latent_dict.get('gt_node_corr_score')
             # Make ref and src indices pairs
             init_corr_indices = torch.cat([init_ref_corr_indices, init_src_corr_indices], dim=1)
 
@@ -82,6 +84,7 @@ class Cordi(Module):
             gt_corr_set = set(map(tuple, gt_corr.tolist()))
             init_corr_sampled = []
             init_corr_set = set(map(tuple, init_corr_indices.tolist()))
+            gt_corr_score_matrix_sampled = torch.full((ref_points_sampled.shape[0], src_points_sampled.shape[0]),0.0)
 
             for i, ref_index in enumerate(ref_sample_indices):
                 for j, src_index in enumerate(src_sample_indices):
@@ -89,6 +92,7 @@ class Cordi(Module):
                         gt_corr_sampled.append([i, j])
                     if (ref_index, src_index) in init_corr_set:
                         init_corr_sampled.append([i, j])
+                    
             
             # Get the sampled points and features
             ref_points_sampled = ref_points[ref_sample_indices]
@@ -99,6 +103,11 @@ class Cordi(Module):
             corr_matrix = torch.full((ref_points_sampled.shape[0], src_points_sampled.shape[0]),-1.0)
             for pair in gt_corr_sampled:
                 corr_matrix[pair[0], pair[1]] = 1.0
+
+            gt_corr_score_matrix_sampled = torch.full((ref_points_sampled.shape[0], src_points_sampled.shape[0]),0.0)
+            for i in range(gt_corr_score_matrix.shape[0]):
+                for j in range(gt_corr_score_matrix.shape[1]):
+                    gt_corr_score_matrix_sampled[i, j] = gt_corr_score_matrix[ref_sample_indices[i], src_sample_indices[j]]
             '''
             feat_matrix = torch.zeros((ref_points_sampled.shape[0], src_points_sampled.shape[0], 
                                     ref_feats_sampled.shape[1]))
@@ -126,6 +135,7 @@ class Cordi(Module):
             #b_init_corr_sampled.append(torch.tensor(init_corr_sampled))
             b_init_corr_matrix.append(init_corr_matrix.unsqueeze(0))
             b_init_corr_num.append(len(init_corr_sampled))
+            b_gt_corr_score_matrix_sampled.append(gt_corr_score_matrix_sampled)
 
         d_dict = {
             'ref_points': torch.cat(b_ref_points_sampled, dim=0),
@@ -137,7 +147,8 @@ class Cordi(Module):
             #'feat_matrix': torch.cat(b_feat_matrix, dim=0),
             #'init_corr': torch.cat(b_init_corr_sampled, dim=0),
             'init_corr_matrix': torch.cat(b_init_corr_matrix , dim=0),
-            'init_corr_num': b_init_corr_num
+            'init_corr_num': b_init_corr_num,
+            'gt_corr_score_matrix': torch.cat(b_gt_corr_score_matrix_sampled, dim=0)
         }
         return d_dict
     
@@ -145,7 +156,8 @@ class Cordi(Module):
     def get_loss(self, batch_latent_data):
 
         d_dict = self.downsample(batch_latent_data)
-        mat = d_dict.get('gt_corr_matrix').cuda()
+        #mat = d_dict.get('gt_corr_matrix').cuda()
+        mat = d_dict.get('gt_corr_score_matrix').cuda()
         ref_feats = d_dict.get('ref_feats').cuda()
         src_feats = d_dict.get('src_feats').cuda()
         loss = self.diffusion.get_loss(mat, ref_feats, src_feats)

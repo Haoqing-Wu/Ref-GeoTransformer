@@ -14,6 +14,7 @@ from geotransformer.modules.geotransformer import (
 )
 
 from backbone import KPConvFPN
+from geotransformer.datasets.registration.linemod.bop_utils import get_corr_score_matrix
 
 
 class GeoTransformer(nn.Module):
@@ -125,9 +126,11 @@ class GeoTransformer(nn.Module):
             ref_knn_masks=ref_node_knn_masks,
             src_knn_masks=src_node_knn_masks,
         )
+        gt_corr_score_matrix = get_corr_score_matrix(ref_points_c, src_points_c, transform)
 
         output_dict['gt_node_corr_indices'] = gt_node_corr_indices
         output_dict['gt_node_corr_overlaps'] = gt_node_corr_overlaps
+        output_dict['gt_node_corr_score'] = gt_corr_score_matrix
 
         # 2. KPFCNN Encoder
         feats_list = self.backbone(feats, data_dict)
