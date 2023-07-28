@@ -84,7 +84,6 @@ class Cordi(Module):
             gt_corr_set = set(map(tuple, gt_corr.tolist()))
             init_corr_sampled = []
             init_corr_set = set(map(tuple, init_corr_indices.tolist()))
-            gt_corr_score_matrix_sampled = torch.full((ref_points_sampled.shape[0], src_points_sampled.shape[0]),0.0)
 
             for i, ref_index in enumerate(ref_sample_indices):
                 for j, src_index in enumerate(src_sample_indices):
@@ -105,8 +104,8 @@ class Cordi(Module):
                 corr_matrix[pair[0], pair[1]] = 1.0
 
             gt_corr_score_matrix_sampled = torch.full((ref_points_sampled.shape[0], src_points_sampled.shape[0]),0.0)
-            for i in range(gt_corr_score_matrix.shape[0]):
-                for j in range(gt_corr_score_matrix.shape[1]):
+            for i in range(gt_corr_score_matrix_sampled.shape[0]):
+                for j in range(gt_corr_score_matrix_sampled.shape[1]):
                     gt_corr_score_matrix_sampled[i, j] = gt_corr_score_matrix[ref_sample_indices[i], src_sample_indices[j]]
             '''
             feat_matrix = torch.zeros((ref_points_sampled.shape[0], src_points_sampled.shape[0], 
@@ -135,7 +134,7 @@ class Cordi(Module):
             #b_init_corr_sampled.append(torch.tensor(init_corr_sampled))
             b_init_corr_matrix.append(init_corr_matrix.unsqueeze(0))
             b_init_corr_num.append(len(init_corr_sampled))
-            b_gt_corr_score_matrix_sampled.append(gt_corr_score_matrix_sampled)
+            b_gt_corr_score_matrix_sampled.append(gt_corr_score_matrix_sampled.unsqueeze(0))
 
         d_dict = {
             'ref_points': torch.cat(b_ref_points_sampled, dim=0),

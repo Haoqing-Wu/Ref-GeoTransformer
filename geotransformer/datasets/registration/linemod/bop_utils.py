@@ -196,16 +196,17 @@ def get_corr(tgt_pcd, src_pcd, rot, trans, radius):
     coverage = corr.shape[0] / tgt_pcd.shape[0]
     return corr, coverage
 
-def get_corr_score_matrix(tgt_pcd, src_pcd, transform, sigma=1.0):
+def get_corr_score_matrix(tgt_pcd, src_pcd, transform, sigma=0.3):
     src_pcd_t = apply_transform(src_pcd, transform)
-    scores = []
-    for point1 in src_pcd_t:
-        point_scores = []
-        for point2 in tgt_pcd:
-            distance = torch.sqrt(torch.sum((point1 - point2) ** 2))
-            score = torch.exp(-(distance ** 2) / (2 * sigma ** 2))
-            point_scores.append(score * 2 - 1)
-        scores.append(point_scores)
+    # Calculate pointwise distances using broadcasting
+    distances = torch.cdist(tgt_pcd, src_pcd_t)
+
+    # Calculate pointwise scores using the Gaussian kernel
+    scores = torch.exp(-(distances ** 2) / (2 * sigma ** 2))
+
+    # Normalize scores to the range [-1, 1]
+    scores = scores * 2 - 1
+
     return scores
 
 def get_corr_matrix(corr, tgt_len, src_len):
