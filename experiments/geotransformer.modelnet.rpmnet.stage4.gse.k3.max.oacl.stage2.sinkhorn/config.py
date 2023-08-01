@@ -115,7 +115,7 @@ _C.coarse_matching.dual_normalization = True
 _C.geotransformer = edict()
 _C.geotransformer.input_dim = 512
 _C.geotransformer.hidden_dim = 256
-_C.geotransformer.output_dim = 256
+_C.geotransformer.output_dim = 128
 _C.geotransformer.num_heads = 4
 _C.geotransformer.blocks = ["self", "cross", "self", "cross", "self", "cross"]
 _C.geotransformer.sigma_d = 0.2
@@ -138,23 +138,23 @@ _C.fine_matching.num_refinement_steps = 5
 # model - DDPM
 _C.ddpm = edict()
 _C.ddpm.batch_size = 1
-_C.ddpm.num_steps = 100
+_C.ddpm.num_steps = 200
 _C.ddpm.beta_1 = 1e-4
 _C.ddpm.beta_T = 0.02
 _C.ddpm.sched_mode = 'linear'
-_C.ddpm.ref_sample_num = 40
-_C.ddpm.src_sample_num = 80
+_C.ddpm.ref_sample_num = 70
+_C.ddpm.src_sample_num = 140
 _C.ddpm.adaptive_size = False
 _C.ddpm.size_factor = 0.8
 _C.ddpm.sample_topk = 32
 _C.ddpm.sample_topk_1_2 = 16
 _C.ddpm.sample_topk_1_4 = 8
-_C.ddpm.time_emb_dim = 512
+_C.ddpm.time_emb_dim = 256
 
 # model - DDPM - Transformer
 _C.ddpm_transformer = edict()
 _C.ddpm_transformer.n_layers = 8
-_C.ddpm_transformer.n_heads = 8
+_C.ddpm_transformer.n_heads = 4
 _C.ddpm_transformer.query_dimensions = 64
 _C.ddpm_transformer.value_dimensions = 64
 _C.ddpm_transformer.feed_forward_dimensions = 2048

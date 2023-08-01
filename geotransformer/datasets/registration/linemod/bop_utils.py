@@ -488,7 +488,7 @@ def save_corr_pcd(output_dict):
     line_outlier.colors = o3d.utility.Vector3dVector([[1, 0, 0] for i in range(len(lines))])
     o3d.io.write_line_set("./output/geotransformer.modelnet.rpmnet.stage4.gse.k3.max.oacl.stage2.sinkhorn/result/line_outlier.ply", line_outlier)
 
-def save_corr_pcd_ddpm(output_dict):
+def save_corr_pcd_ddpm(output_dict, data_dict):
     tgt_pcd = output_dict['ref_points'].cpu().numpy()
     src_pcd = output_dict['src_points'].cpu().numpy()
     pred_corr = output_dict['pred_corr']
@@ -496,6 +496,15 @@ def save_corr_pcd_ddpm(output_dict):
     src_corr_indices = pred_corr[:, 1]
 
     gt_corr_matrix = output_dict['gt_corr_matrix'].numpy()
+
+    gt_transform = data_dict['transform'].cpu().numpy()
+    shift = np.array([[1, 0, 0, 1],
+                      [0, 1, 0, 1],
+                      [0, 0, 1, 1],
+                      [0, 0, 0, 1]])
+    gt_transform_vis = torch.from_numpy(np.dot(shift, gt_transform))
+    src_pcd_t = apply_transform(torch.from_numpy(src_pcd.astype(np.float64)), gt_transform_vis).numpy()
+
     
     # save the target point cloud
     pcd_frame = o3d.geometry.PointCloud()
@@ -503,7 +512,7 @@ def save_corr_pcd_ddpm(output_dict):
     o3d.io.write_point_cloud("./output/geotransformer.modelnet.rpmnet.stage4.gse.k3.max.oacl.stage2.sinkhorn/result/pcd_frame.ply", pcd_frame)
     # save the source point cloud
     pcd_model = o3d.geometry.PointCloud()
-    pcd_model.points = o3d.utility.Vector3dVector(src_pcd)
+    pcd_model.points = o3d.utility.Vector3dVector(src_pcd_t)
     o3d.io.write_point_cloud("./output/geotransformer.modelnet.rpmnet.stage4.gse.k3.max.oacl.stage2.sinkhorn/result/pcd_model.ply", pcd_model)
     # save the ground truth correspondences
     points = []
@@ -513,7 +522,7 @@ def save_corr_pcd_ddpm(output_dict):
         for j in range(gt_corr_matrix.shape[1]):
             if gt_corr_matrix[i, j] == 1.0:
                 gt_corr_pairs.append([i, j])
-                points.append(src_pcd[j])
+                points.append(src_pcd_t[j])
                 points.append(tgt_pcd[i])
                 lines.append([len(points) - 2, len(points) - 1])
     line_gt = o3d.geometry.LineSet()
@@ -525,7 +534,7 @@ def save_corr_pcd_ddpm(output_dict):
     points = []
     lines = []
     for i in range(len(tgt_corr_indices)):
-        src_point = src_pcd[src_corr_indices[i]]
+        src_point = src_pcd_t[src_corr_indices[i]]
         tgt_point = tgt_pcd[tgt_corr_indices[i]]
         points.append(src_point)
         points.append(tgt_point)
@@ -549,7 +558,7 @@ def save_corr_pcd_ddpm(output_dict):
     points = []
     lines = []
     for i in range(len(inlier_corr_pairs)):
-        src_point = src_pcd[inlier_corr_pairs[i][1]]
+        src_point = src_pcd_t[inlier_corr_pairs[i][1]]
         tgt_point = tgt_pcd[inlier_corr_pairs[i][0]]
         points.append(src_point)
         points.append(tgt_point)
@@ -563,7 +572,7 @@ def save_corr_pcd_ddpm(output_dict):
     points = []
     lines = []
     for i in range(len(outlier_corr_pairs)):
-        src_point = src_pcd[outlier_corr_pairs[i][1]]
+        src_point = src_pcd_t[outlier_corr_pairs[i][1]]
         tgt_point = tgt_pcd[outlier_corr_pairs[i][0]]
         points.append(src_point)
         points.append(tgt_point)
@@ -607,3 +616,11 @@ def test_normalize_pcd(tgt_pcd, src_pcd, rot, trans):
     tgt_pcd_norm_plt.points = o3d.utility.Vector3dVector(tgt_pcd_norm)
     o3d.io.write_point_cloud("./output/geotransformer.modelnet.rpmnet.stage4.gse.k3.max.oacl.stage2.sinkhorn/result/test_norm_tgt.ply", tgt_pcd_norm_plt)
 
+def statistical_outlier_rm(pcd, num, std=1.0):
+    pcd_o3d = o3d.geometry.PointCloud()
+    pcd_o3d.points = o3d.utility.Vector3dVector(pcd)
+    #o3d.io.write_point_cloud("./output/geotransformer.modelnet.rpmnet.stage4.gse.k3.max.oacl.stage2.sinkhorn/result/raw.ply", pcd_o3d)
+    cl, ind = pcd_o3d.remove_statistical_outlier(nb_neighbors=num, std_ratio=std)
+    #o3d.io.write_point_cloud("./output/geotransformer.modelnet.rpmnet.stage4.gse.k3.max.oacl.stage2.sinkhorn/result/cl.ply", cl)
+    pcd_cl = np.array(cl.points)
+    return pcd_cl

@@ -183,6 +183,9 @@ class LMODataset(data.Dataset):
                 cloud = np.concatenate((pt0, pt1, pt2), axis=1)
                 tgt_pcd = cloud / 1000.0  # scale to meters
 
+                if self.mode == 'test':
+                    tgt_pcd = statistical_outlier_rm(tgt_pcd, num=30)
+                    
                 src_pcd = resize_pcd(src_pcd_, self.points_limit)
                 tgt_pcd = resize_pcd(tgt_pcd, self.points_limit)
 
@@ -190,6 +193,7 @@ class LMODataset(data.Dataset):
                     trans = trans[:, None]
                 #src_pcd = sort_pcd_from_center(src_pcd)
                 #tgt_pcd = sort_pcd_from_center(tgt_pcd)
+                
 
                 src_pcd, tgt_pcd = normalize_points(src_pcd, tgt_pcd, rot, trans)
 
