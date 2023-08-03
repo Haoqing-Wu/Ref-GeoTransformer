@@ -1,7 +1,9 @@
 import torch
+import math
 from torch.nn import Module, TransformerEncoder, TransformerEncoderLayer, Sequential, Linear, LayerNorm, ReLU, GELU, SiLU, ModuleList
 from geotransformer.modules.transformer.vanilla_transformer import TransformerLayer
 from timm.models.vision_transformer import Attention, Mlp
+from einops import rearrange
 
 class transformer(Module):
     # Build a transformer encoder
@@ -11,7 +13,8 @@ class transformer(Module):
             n_heads=4,
             query_dimensions=64,
             feed_forward_dimensions=2048,
-            activation="gelu"
+            activation="gelu",
+            time_emb_dim=256
         ):
         super().__init__()
         self.encoder_layer = TransformerEncoderLayer(
@@ -26,12 +29,12 @@ class transformer(Module):
             num_layers=n_layers
         )
         self.output_mlp = Sequential(
-            LayerNorm(query_dimensions*n_heads),
-            Linear(query_dimensions*n_heads, 64),
-            ReLU(),
-            Linear(64, 32),
-            ReLU(),
-            Linear(32, 1)
+            #LayerNorm(query_dimensions*n_heads),
+            Linear(query_dimensions*n_heads, 2)
+            #ReLU(),
+            #Linear(64, 32),
+            #ReLU(),
+            #Linear(32, 2)
         )
         self.feature_cross_attension = TransformerLayer(
             d_model=256, num_heads=8, dropout=None, activation_fn='ReLU'
@@ -43,11 +46,20 @@ class transformer(Module):
         self.DiT_blocks = ModuleList([
             DiTBlock(query_dimensions*n_heads, n_heads, mlp_ratio=4.0) for _ in range(n_layers)
         ])
-        
+        self.time_emb = Sequential(
+                SinusoidalPositionEmbeddings(time_emb_dim),
+                Linear(time_emb_dim, n_heads*query_dimensions),
+                ReLU()
+        )
 
     def feature_fusion_cat(self, feat0, feat1):
         feat_matrix = torch.cat([feat0.unsqueeze(2).repeat(1, 1, feat1.shape[1], 1),
                                     feat1.unsqueeze(1).repeat(1, feat0.shape[1], 1, 1)], dim=-1)
+        feat_matrix = feat_matrix.view(feat0.shape[0], feat0.shape[1], feat1.shape[1], -1)
+        return feat_matrix
+
+    def feature_fusion_add(self, feat0, feat1):
+        feat_matrix = feat0.unsqueeze(2).repeat(1, 1, feat1.shape[1], 1) + feat1.unsqueeze(1).repeat(1, feat0.shape[1], 1, 1)
         feat_matrix = feat_matrix.view(feat0.shape[0], feat0.shape[1], feat1.shape[1], -1)
         return feat_matrix
     
@@ -63,12 +75,16 @@ class transformer(Module):
         return feat_matrix
 
         
-    def forward(self, x_t, t, feat0, feat1):
-        
+    def forward(self, x_t, t, feats):
+
+        feat0 = feats.get('ref_feats')
+        feat1 = feats.get('src_feats')
         ctx = self.feature_fusion_cat(feat0, feat1)
         #ctx = self.feature_fusion_cross_attention(feat0, feat1)
-        x = x_t.unsqueeze(-1) + ctx
+        x = x_t.squeeze(1)
+        x = x.unsqueeze(-1) + ctx
         x = torch.reshape(x, (x.shape[0], -1, x.shape[-1]))
+        t = self.time_emb(t)
         #t_seq = t.unsqueeze(1)
         #x = torch.cat([x, t_seq], dim=1)
         #x = self.transformer_encoder(x)
@@ -76,7 +92,8 @@ class transformer(Module):
             x = block(x, t)
         x = self.output_mlp(x)
         #x = x[:, :-1, :]
-        x = torch.reshape(x, (x.shape[0], -1, x_t.shape[-1]))
+        x = torch.reshape(x, (x_t.shape[0], x_t.shape[2], x_t.shape[3], -1))
+        x = rearrange(x, 'b h w c -> b c h w')
         return x
 
 
@@ -110,6 +127,23 @@ class DiTBlock(Module):
         x = x + gate_msa.unsqueeze(1) * self.attn(modulate(x, shift_msa, scale_msa))
         x = x + gate_mlp.unsqueeze(1) * self.mlp(modulate(self.norm2(x), shift_mlp, scale_mlp))
         return x
+
+class SinusoidalPositionEmbeddings(Module):
+    def __init__(self, dim):
+        super().__init__()
+        self.dim = dim
+        
+
+    def forward(self, time):
+        device = time.device
+        half_dim = self.dim // 2
+        embeddings = math.log(10000) / (half_dim - 1)
+        embeddings = torch.exp(torch.arange(half_dim, device=device) * -embeddings)
+        embeddings = time[:, None] * embeddings[None, :]
+        embeddings = torch.cat((embeddings.sin(), embeddings.cos()), dim=-1)
+        # TODO: Double check the ordering here
+        return embeddings
+
 
 if __name__ == "__main__":
     # Test the transformer encoder
