@@ -10,6 +10,7 @@ from PIL import Image
 from tqdm import tqdm
 from pathlib import Path
 from scipy.spatial.transform import Rotation
+from torchvision import transforms as pth_transforms
 
 
 from geotransformer.datasets.registration.linemod.bop_utils import *
@@ -83,6 +84,7 @@ class LMODataset(data.Dataset):
         tgt_pcd = data_dict['ref_points']
         rot = data_dict['rot']
         trans = data_dict['trans']
+        rgb = data_dict['rgb']
 
         if self.data_augmentation:
             # rotate the point cloud
@@ -107,6 +109,14 @@ class LMODataset(data.Dataset):
         trans = trans.reshape(-1)
         transform = get_transform_from_rotation_translation(rot, trans)
 
+        rgb = Image.fromarray(rgb)
+        #save = rgb.resize((256, 256)).save('./test.png')
+        img_transform = pth_transforms.Compose([
+        pth_transforms.Resize((256, 256)),
+        pth_transforms.ToTensor(),
+        #pth_transforms.Normalize((0.485, 0.456, 0.406), (0.229, 0.224, 0.225)),
+        ])
+        rgb = img_transform(rgb)
 
         
         return {
@@ -114,6 +124,7 @@ class LMODataset(data.Dataset):
             'frame_id': int(frame_id),
             'src_points': src_pcd.astype(np.float32),
             'ref_points': tgt_pcd.astype(np.float32),
+            'rgb': rgb,
             'transform': transform.astype(np.float32),
             'src_feats': src_feats.astype(np.float32),
             'ref_feats': tgt_feats.astype(np.float32)    
@@ -146,6 +157,7 @@ class LMODataset(data.Dataset):
             frame_path = frame_root + '/' + model_id
             depth_path = frame_path + '/depth'
             mask_path = frame_path + '/mask_visib'
+            rgb_path = frame_path + '/rgb'
 
             gt_path = '{0}/scene_gt.json'.format(frame_path)
             cam_path = '{0}/scene_camera.json'.format(frame_path)
@@ -159,11 +171,13 @@ class LMODataset(data.Dataset):
                             str(file) for file in Path(depth_path).glob('*.png')}
             mask_files = {os.path.splitext(os.path.basename(file))[0]:\
                             str(file) for file in Path(mask_path).glob('*.png')}
+            rgb_files = {os.path.splitext(os.path.basename(file))[0]:\
+                            str(file) for file in Path(rgb_path).glob('*.png')}
             frames = list(depth_files.keys())
             
             for frame_id in frames:
                 cam_cx, cam_cy, cam_fx, cam_fy = get_camera_info(cam_path, int(frame_id))
-                rot, trans = get_gt(gt_path, int(frame_id)) 
+                rot, trans = get_gt(gt_path, int(frame_id))
 
                 depth = np.array(Image.open(str(depth_files[frame_id])))
                 vis_mask = np.array(Image.open(str(mask_files[frame_id + '_000000'])))
@@ -197,11 +211,18 @@ class LMODataset(data.Dataset):
 
                 src_pcd, tgt_pcd = normalize_points(src_pcd, tgt_pcd, rot, trans)
 
+                # image processing
+                rgb_img = np.array(Image.open(str(rgb_files[frame_id])))
+                mask_rgb_label = np.repeat(np.expand_dims(mask_label, axis=-1), 3, axis=2)
+                mask_rgb = rgb_img * mask_rgb_label
+                rgb = mask_rgb[rmin:rmax, cmin:cmax]
+
                 frame_data = {
                     'obj_id': int(obj_id),
                     'frame_id': int(frame_id),
                     'src_points': src_pcd.astype(np.float32),
                     'ref_points': tgt_pcd.astype(np.float32),
+                    'rgb': rgb,
                     'rot': rot.astype(np.float32),
                     'trans': trans.astype(np.float32)
                 }

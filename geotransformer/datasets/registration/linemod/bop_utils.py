@@ -44,10 +44,10 @@ def get_bbox(bbox):
             break
 
     center = [int((rmin + rmax) / 2), int((cmin + cmax) / 2)]
-    rmin = center[0] - int(r_b / 2)
-    rmax = center[0] + int(r_b / 2)
-    cmin = center[1] - int(c_b / 2)
-    cmax = center[1] + int(c_b / 2)
+    rmin = center[0] - max(int(r_b / 2), int(c_b / 2))
+    rmax = center[0] + max(int(r_b / 2), int(c_b / 2))
+    cmin = center[1] - max(int(r_b / 2), int(c_b / 2))
+    cmax = center[1] + max(int(r_b / 2), int(c_b / 2))
     rmin = max(rmin, 0)
     cmin = max(cmin, 0)
     rmax = min(rmax, 480)
