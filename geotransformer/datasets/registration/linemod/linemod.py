@@ -10,7 +10,7 @@ from PIL import Image
 from tqdm import tqdm
 from pathlib import Path
 from scipy.spatial.transform import Rotation
-from torchvision import transforms as pth_transforms
+from torchvision import transforms
 
 
 from geotransformer.datasets.registration.linemod.bop_utils import *
@@ -110,11 +110,11 @@ class LMODataset(data.Dataset):
         transform = get_transform_from_rotation_translation(rot, trans)
 
         rgb = Image.fromarray(rgb)
-        #save = rgb.resize((256, 256)).save('./test.png')
-        img_transform = pth_transforms.Compose([
-        pth_transforms.Resize((256, 256)),
-        pth_transforms.ToTensor(),
-        #pth_transforms.Normalize((0.485, 0.456, 0.406), (0.229, 0.224, 0.225)),
+        rgb = rgb.resize((256, 256))
+        #save = rgb.save('./test.png')
+        img_transform = transforms.Compose([
+            transforms.ToTensor(),
+            transforms.Normalize((0.485, 0.456, 0.406), (0.229, 0.224, 0.225)),
         ])
         rgb = img_transform(rgb)
 

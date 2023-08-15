@@ -9,8 +9,9 @@ import torch.optim as optim
 from IPython import embed
 
 from geotransformer.engine.iter_based_trainer import IterBasedDDPMTrainer
-from geotransformer.utils.torch import build_warmup_cosine_lr_scheduler
+from geotransformer.utils.torch import build_warmup_cosine_lr_scheduler, load_pretrained_weights_dino
 from geotransformer.modules.cordi.cordi import create_cordi
+from geotransformer.modules.cordi import vision_transformer as vits
 
 from config import make_cfg
 from dataset import train_valid_data_loader
@@ -36,6 +37,10 @@ class DDPMTrainer(IterBasedDDPMTrainer):
         # model, optimizer, scheduler
         encoder_model = create_model(cfg).cuda() # encoder
         encoder_model = self.register_pretrained_model(encoder_model)
+        # dino/vit
+        dino_model = vits.__dict__[cfg.dino.arch](patch_size=cfg.dino.patch_size, num_classes=0).cuda()
+        dino_model = self.register_dino_model(dino_model)
+        load_pretrained_weights_dino(self.dino_model, cfg.dino.pretrained_weights, cfg.dino.checkpoint_key, cfg.dino.arch, cfg.dino.patch_size)
         # create ddpm model
         ########################################
         model = create_cordi(cfg).cuda() # ddpm
@@ -63,6 +68,8 @@ class DDPMTrainer(IterBasedDDPMTrainer):
 
     def val_step(self, iteration, data_dict):
         latent_dict = self.encoder_model(data_dict)
+        feat_2d = self.dino_model(data_dict['rgb'].unsqueeze(0))
+        latent_dict['feat_2d'] = feat_2d.squeeze(0)
         output_dict = self.model.sample(latent_dict)
         result_dict = self.evaluator(output_dict, latent_dict)
         return output_dict, result_dict

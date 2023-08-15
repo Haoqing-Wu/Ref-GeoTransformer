@@ -77,7 +77,7 @@ _C.optim.lr = 1e-4
 _C.optim.weight_decay = 1e-6
 _C.optim.warmup_steps = 1000
 _C.optim.eta_init = 0.1
-_C.optim.eta_min = 0.01
+_C.optim.eta_min = 0.1
 _C.optim.max_iteration = 20000
 _C.optim.snapshot_steps = 2000
 _C.optim.grad_acc_steps = 1
@@ -134,6 +134,13 @@ _C.fine_matching.use_global_score = False
 _C.fine_matching.correspondence_threshold = 3
 _C.fine_matching.correspondence_limit = None
 _C.fine_matching.num_refinement_steps = 5
+
+# model - DINO
+_C.dino = edict()
+_C.dino.arch = 'vit_base'
+_C.dino.patch_size = 8
+_C.dino.pretrained_weights = ''
+_C.dino.checkpoint_key = "teacher"
 
 # model - DDPM
 _C.ddpm = edict()

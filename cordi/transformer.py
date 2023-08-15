@@ -47,15 +47,11 @@ class transformer(Module):
             DiTBlock(query_dimensions*n_heads, n_heads, mlp_ratio=4.0) for _ in range(n_layers)
         ])
         self.time_emb = Sequential(
-            SinusoidalPositionEmbeddings(time_emb_dim),
-            Linear(time_emb_dim, n_heads*query_dimensions),
-            GELU(),
-            Linear(n_heads*query_dimensions, n_heads*query_dimensions)
+                SinusoidalPositionEmbeddings(time_emb_dim),
+                Linear(time_emb_dim, n_heads*query_dimensions),
+                ReLU()
         )
-        self.feat_2d_mlp = Sequential(
-            LayerNorm(768),
-            Linear(768, 256)
-        )
+        self.feat_2d_mlp = Linear(384, 256)
 
     def feature_fusion_cat(self, feat0, feat1):
         feat_matrix = torch.cat([feat0.unsqueeze(2).repeat(1, 1, feat1.shape[1], 1),
@@ -93,8 +89,8 @@ class transformer(Module):
         t = self.time_emb(t)
         c_2d = self.feat_2d_mlp(feat_2d)
         c = t + c_2d
-        #c_2d = c_2d.unsqueeze(1)
-        #x = torch.cat([x, c_2d], dim=1)
+        #t_seq = t.unsqueeze(1)
+        #x = torch.cat([x, t_seq], dim=1)
         #x = self.transformer_encoder(x)
         for block in self.DiT_blocks:
             x = block(x, c)

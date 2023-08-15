@@ -326,7 +326,7 @@ class IterBasedDDPMTrainer(BaseTrainer):
         summary_board = SummaryBoard(adaptive=True)
         timer = Timer()
         #total_iterations = len(self.val_loader)
-        total_iterations = 10
+        total_iterations = 20
         pbar = tqdm.tqdm(enumerate(self.val_loader), total=total_iterations)
         for iteration, data_dict in pbar:
             self.inner_iteration = iteration + 1
@@ -346,7 +346,7 @@ class IterBasedDDPMTrainer(BaseTrainer):
             )
             pbar.set_description(message)
             torch.cuda.empty_cache()
-            if iteration == 10:
+            if iteration == 20:
                 # save the point cloud and corresponding prediction
                 save_corr_pcd_ddpm(output_dict, data_dict)
                 break
@@ -364,7 +364,7 @@ class IterBasedDDPMTrainer(BaseTrainer):
         summary_board = SummaryBoard(adaptive=True)
         timer = Timer()
         #total_iterations = len(self.test_loader)
-        total_iterations = 10
+        total_iterations = 30
         pbar = tqdm.tqdm(enumerate(self.test_loader), total=total_iterations)
         for iteration, data_dict in pbar:
             self.inner_iteration = iteration + 1
@@ -384,7 +384,7 @@ class IterBasedDDPMTrainer(BaseTrainer):
             )
             pbar.set_description(message)
             torch.cuda.empty_cache()
-            if iteration == 10:
+            if iteration == 30:
                 # save the point cloud and corresponding prediction
                 save_corr_pcd_ddpm(output_dict, data_dict)
                 break
@@ -422,6 +422,8 @@ class IterBasedDDPMTrainer(BaseTrainer):
                 data_dict = next(train_loader)
                 with torch.no_grad():
                     latent_dict = self.encoder_model(to_cuda(data_dict))
+                    feat_2d = self.dino_model(to_cuda(data_dict['rgb'].unsqueeze(0)))
+                    latent_dict['feat_2d'] = feat_2d.squeeze(0)
                 batch_latent_data.append(latent_dict)
             batch_latent_data = to_cuda(batch_latent_data)
             self.before_train_step(self.iteration, data_dict)

@@ -93,6 +93,9 @@ class BaseTrainer(abc.ABC):
         # pretrained encoder
         self.encoder_model = None
 
+        # pretrained dino 2d feature extract model
+        self.dino_model = None
+
         # state
         self.model = None
         self.optimizer = None
@@ -204,6 +207,16 @@ class BaseTrainer(abc.ABC):
             local_rank = self.local_rank
             model = nn.parallel.DistributedDataParallel(model, device_ids=[local_rank], output_device=local_rank)
         self.encoder_model = model
+        message = 'Model description:\n' + str(model)
+        self.logger.info(message)
+        return model
+
+    def register_dino_model(self, model):
+        r"""Register model. DDP is automatically used."""
+        if self.distributed:
+            local_rank = self.local_rank
+            model = nn.parallel.DistributedDataParallel(model, device_ids=[local_rank], output_device=local_rank)
+        self.dino_model = model
         message = 'Model description:\n' + str(model)
         self.logger.info(message)
         return model
