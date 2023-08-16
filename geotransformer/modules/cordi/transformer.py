@@ -68,6 +68,11 @@ class transformer(Module):
         feat_matrix = feat_matrix.view(feat0.shape[0], feat0.shape[1], feat1.shape[1], -1)
         return feat_matrix
     
+    def feature_fusion_dist(self, feat0, feat1):
+        feat_matrix = torch.abs(feat0.unsqueeze(2).repeat(1, 1, feat1.shape[1], 1) - feat1.unsqueeze(1).repeat(1, feat0.shape[1], 1, 1))
+        feat_matrix = feat_matrix.view(feat0.shape[0], feat0.shape[1], feat1.shape[1], -1)
+        return feat_matrix
+        
     def feature_fusion_cross_attention(self, feat0, feat1):
         feat0 = feat0.squeeze(0)
         feat1 = feat1.squeeze(0)
