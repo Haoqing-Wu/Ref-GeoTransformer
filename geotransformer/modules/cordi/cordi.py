@@ -63,6 +63,7 @@ class Cordi(Module):
         b_init_corr_num = []
         b_gt_corr_score_matrix_sampled = []
         b_feat_2d = []
+        b_rt = []
         for latent_dict in batch_latent_data:
             # Get the required data from the latent dictionary
             ref_points = latent_dict.get('ref_points_c')
@@ -147,6 +148,7 @@ class Cordi(Module):
             b_init_corr_num.append(len(init_corr_sampled))
             b_gt_corr_score_matrix_sampled.append(gt_corr_score_matrix_sampled.unsqueeze(0))
             b_feat_2d.append(latent_dict.get('feat_2d').unsqueeze(0))
+            b_rt.append(latent_dict.get('rt').unsqueeze(0))
 
         d_dict = {
             'ref_points': torch.cat(b_ref_points_sampled, dim=0),
@@ -160,7 +162,8 @@ class Cordi(Module):
             'init_corr_matrix': torch.cat(b_init_corr_matrix , dim=0),
             'init_corr_num': b_init_corr_num,
             'gt_corr_score_matrix': torch.cat(b_gt_corr_score_matrix_sampled, dim=0),
-            'feat_2d': torch.cat(b_feat_2d, dim=0)
+            'feat_2d': torch.cat(b_feat_2d, dim=0),
+            'rt': torch.cat(b_rt, dim=0)
         }
         return d_dict
     
@@ -173,13 +176,14 @@ class Cordi(Module):
         ref_feats = d_dict.get('ref_feats').cuda()
         src_feats = d_dict.get('src_feats').cuda()
         feat_2d = d_dict.get('feat_2d').cuda()
+        rt = d_dict.get('rt').cuda().unsqueeze(1)
         feats = {}
         feats['ref_feats'] = ref_feats
         feats['src_feats'] = src_feats
         feats['feat_2d'] = feat_2d
         #loss = self.diffusion.get_loss(mat, ref_feats, src_feats)
-        t = torch.randint(0, self.diffusion_new.num_timesteps, (mat.shape[0],), device='cuda')
-        loss_dict = self.diffusion_new.training_losses(self.net, mat, t, feats)
+        t = torch.randint(0, self.diffusion_new.num_timesteps, (rt.shape[0],), device='cuda')
+        loss_dict = self.diffusion_new.training_losses(self.net, rt, t, feats)
         loss = loss_dict["loss"].mean()
         return {'loss': loss}
     
@@ -187,45 +191,28 @@ class Cordi(Module):
         latent_dict = [latent_dict]
         d_dict = self.downsample(latent_dict)
         #mat_T = torch.randn((1, self.ref_sample_num, self.src_sample_num)).cuda()
-        mat_T = torch.randn_like(d_dict.get('init_corr_matrix')).cuda().unsqueeze(1)
+        #mat_T = torch.randn_like(d_dict.get('init_corr_matrix')).cuda().unsqueeze(1)
         #mat_T = d_dict.get('init_corr_matrix').cuda()
         ref_feats = d_dict.get('ref_feats').cuda()
         src_feats = d_dict.get('src_feats').cuda()
+        rt_T = torch.randn_like(d_dict.get('rt')).cuda().unsqueeze(1)
         feat_2d = d_dict.get('feat_2d').cuda()
         feats = {}
         feats['ref_feats'] = ref_feats
         feats['src_feats'] = src_feats
         feats['feat_2d'] = feat_2d
         #pred_corr_mat = self.diffusion.sample(mat_T, ref_feats, src_feats).cpu()
-        pred_corr_mat = self.diffusion_new.p_sample_loop(
-            self.net, mat_T.shape, mat_T, clip_denoised=False, model_kwargs=feats, progress=True, device='cuda'
+        pred_rt = self.diffusion_new.p_sample_loop(
+            self.net, rt_T.shape, rt_T, clip_denoised=False, model_kwargs=feats, progress=True, device='cuda'
         ).cpu()
-        pred_corr_mat = pred_corr_mat.squeeze(1)
-        init_corr_num = d_dict.get('init_corr_num')[0]
-        pred_corr = get_corr_from_matrix_topk(pred_corr_mat, int(init_corr_num))
-        pred_corr_1_2 = get_corr_from_matrix_topk(pred_corr_mat, 32)
-        pred_corr_1_4 = get_corr_from_matrix_topk(pred_corr_mat, 16)
-        pred_corr_0_9, num_corr_0_9 = get_corr_from_matrix_gt(pred_corr_mat, 0.9, 1.1)
-        pred_corr_0_95, num_corr_0_95 = get_corr_from_matrix_gt(pred_corr_mat, 0.95, 1.05)
-        pred_corr_1, num_corr_1 = get_corr_from_matrix_gt(pred_corr_mat, 0.98, 1.02)
+        pred_rt = pred_rt.squeeze(1)
         return {
-            'pred_corr_mat': pred_corr_mat,
-            'pred_corr': pred_corr,
-            'pred_corr_1_2': pred_corr_1_2,
-            'pred_corr_1_4': pred_corr_1_4,
-            'pred_corr_0_9': pred_corr_0_9,
-            'pred_corr_0_95': pred_corr_0_95,
-            'pred_corr_1': pred_corr_1,
-            'num_corr_0_9': num_corr_0_9,
-            'num_corr_0_95': num_corr_0_95,
-            'num_corr_1': num_corr_1,
+            
             'gt_corr_matrix': d_dict.get('gt_corr_matrix').squeeze(0),
-            #'gt_corr': d_dict.get('gt_corr'),
             'init_corr_matrix': d_dict.get('init_corr_matrix').squeeze(0),
-            'init_corr_num': init_corr_num,
-            #'init_corr': d_dict.get('init_corr'),
             'ref_points': d_dict.get('ref_points').squeeze(0),
             'src_points': d_dict.get('src_points').squeeze(0),
+            'pred_rt': pred_rt.squeeze(0),
             }
         
 

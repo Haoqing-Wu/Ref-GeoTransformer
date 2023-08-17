@@ -78,7 +78,7 @@ _C.optim.weight_decay = 1e-6
 _C.optim.warmup_steps = 1000
 _C.optim.eta_init = 0.1
 _C.optim.eta_min = 0.1
-_C.optim.max_iteration = 20000
+_C.optim.max_iteration = 40000
 _C.optim.snapshot_steps = 2000
 _C.optim.grad_acc_steps = 1
 
@@ -160,11 +160,11 @@ _C.ddpm.time_emb_dim = 256
 
 # model - DDPM - Transformer
 _C.ddpm_transformer = edict()
-_C.ddpm_transformer.n_layers = 8
+_C.ddpm_transformer.n_layers = 12
 _C.ddpm_transformer.n_heads = 4
 _C.ddpm_transformer.query_dimensions = 64
 _C.ddpm_transformer.value_dimensions = 64
-_C.ddpm_transformer.feed_forward_dimensions = 2048
+_C.ddpm_transformer.feed_forward_dimensions = 1024
 _C.ddpm_transformer.attention_type = "full"
 _C.ddpm_transformer.activation = "gelu"
 

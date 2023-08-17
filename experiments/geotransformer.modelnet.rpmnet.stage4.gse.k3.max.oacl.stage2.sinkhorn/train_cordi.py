@@ -70,8 +70,9 @@ class DDPMTrainer(IterBasedDDPMTrainer):
         latent_dict = self.encoder_model(data_dict)
         feat_2d = self.dino_model(data_dict['rgb'].unsqueeze(0))
         latent_dict['feat_2d'] = feat_2d.squeeze(0)
+        latent_dict['rt'] = data_dict['rt']
         output_dict = self.model.sample(latent_dict)
-        result_dict = self.evaluator(output_dict, latent_dict)
+        result_dict = self.evaluator(output_dict, data_dict)
         return output_dict, result_dict
 
 def main():

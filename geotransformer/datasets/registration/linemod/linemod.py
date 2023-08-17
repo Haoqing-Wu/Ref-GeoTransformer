@@ -107,7 +107,12 @@ class LMODataset(data.Dataset):
         src_feats = np.ones_like(src_pcd[:, :1])
         tgt_feats = np.ones_like(tgt_pcd[:, :1])
         trans = trans.reshape(-1)
+        r = Rotation.from_matrix(rot)
+        quaternion = r.as_quat()
+        #rt = np.concatenate((quaternion, trans), axis=0)
+
         transform = get_transform_from_rotation_translation(rot, trans)
+
 
         rgb = Image.fromarray(rgb)
         rgb = rgb.resize((256, 256))
@@ -127,7 +132,8 @@ class LMODataset(data.Dataset):
             'rgb': rgb,
             'transform': transform.astype(np.float32),
             'src_feats': src_feats.astype(np.float32),
-            'ref_feats': tgt_feats.astype(np.float32)    
+            'ref_feats': tgt_feats.astype(np.float32),
+            'rt': quaternion.astype(np.float32)   
         }
 
 

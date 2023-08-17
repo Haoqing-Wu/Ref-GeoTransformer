@@ -348,7 +348,7 @@ class IterBasedDDPMTrainer(BaseTrainer):
             torch.cuda.empty_cache()
             if iteration == 20:
                 # save the point cloud and corresponding prediction
-                save_corr_pcd_ddpm(output_dict, data_dict)
+                #save_corr_pcd_ddpm(output_dict, data_dict)
                 break
 
         self.after_val()
@@ -386,7 +386,7 @@ class IterBasedDDPMTrainer(BaseTrainer):
             torch.cuda.empty_cache()
             if iteration == 30:
                 # save the point cloud and corresponding prediction
-                save_corr_pcd_ddpm(output_dict, data_dict)
+                #save_corr_pcd_ddpm(output_dict, data_dict)
                 break
 
         self.after_val()
@@ -424,6 +424,7 @@ class IterBasedDDPMTrainer(BaseTrainer):
                     latent_dict = self.encoder_model(to_cuda(data_dict))
                     feat_2d = self.dino_model(to_cuda(data_dict['rgb'].unsqueeze(0)))
                     latent_dict['feat_2d'] = feat_2d.squeeze(0)
+                    latent_dict['rt'] = data_dict['rt']
                 batch_latent_data.append(latent_dict)
             batch_latent_data = to_cuda(batch_latent_data)
             self.before_train_step(self.iteration, data_dict)

@@ -4,7 +4,8 @@ import torch.nn as nn
 from geotransformer.modules.ops import apply_transform, pairwise_distance
 from geotransformer.modules.loss import WeightedCircleLoss
 from geotransformer.modules.registration.metrics import isotropic_transform_error
-
+from scipy.spatial.transform import Rotation
+from geotransformer.datasets.registration.linemod.bop_utils import *
 
 class CoarseMatchingLoss(nn.Module):
     def __init__(self, cfg):
@@ -281,7 +282,18 @@ class DDPMEvaluator(nn.Module):
     @torch.no_grad()
     def evaluate_registration(self, output_dict, data_dict):
         transform = data_dict['transform']
-        est_transform = output_dict['estimated_transform']
+        pred_rt = output_dict['pred_rt']
+        #quat = pred_rt[:4]
+        quat = pred_rt
+        # if nan in quaternion, set it to 1
+        if torch.isnan(quat).any():
+            quat = torch.tensor([1.0, 0.0, 0.0, 0.0]).cpu()
+            print('nan in quaternion')
+        r = Rotation.from_quat(quat)
+        rot = r.as_matrix()
+        trans = transform[:3, 3].cpu().numpy()
+        est_transform = torch.from_numpy(get_transform_from_rotation_translation(rot, trans).astype(np.float32)).cuda()
+
         src_points = output_dict['src_points']
 
         rre, rte = isotropic_transform_error(transform, est_transform)
@@ -293,23 +305,11 @@ class DDPMEvaluator(nn.Module):
 
         return rre, rte, rmse, recall
 
-    def forward(self, output_dict, latent_dict):
-        c_precision, c_precision_1_2, c_precision_1_4, precision_0_9, pred_corr_0_95, precision_1, \
-            num_corr_0_9, num_corr_0_95, num_corr_1, init_precision, corr_num = self.evaluate_coarse(output_dict)
-        geo_precision, geo_precision_m, geo_precision_s = self.evaluate_coarse_geotransformer(latent_dict)
+    def forward(self, output_dict, data_dict):
+        rre, rte, rmse, recall = self.evaluate_registration(output_dict, data_dict)
         return {
-            'PIR': c_precision,
-            'PIR_M': c_precision_1_2,
-            'PIR_S': c_precision_1_4,
-            'PIR_0_9': precision_0_9,
-            'PIR_0_95': pred_corr_0_95,
-            'PIR_1': precision_1,
-            'Corr_num_0_9': num_corr_0_9,
-            'Corr_num_0_95': num_corr_0_95,
-            'Corr_num_1': num_corr_1,
-            'IIR': init_precision, 
-            'Corr_num': corr_num,
-            'GIR': geo_precision,
-            'GIR_M': geo_precision_m,
-            'GIR_S': geo_precision_s
+            'RRE': rre,
+            'RTE': rte,
+            'RMSE': rmse,
+            'RR': recall
         }

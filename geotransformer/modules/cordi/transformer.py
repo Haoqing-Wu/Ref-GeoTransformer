@@ -4,6 +4,7 @@ from torch.nn import Module, TransformerEncoder, TransformerEncoderLayer, Sequen
 from geotransformer.modules.transformer.vanilla_transformer import TransformerLayer
 from timm.models.vision_transformer import Attention, Mlp
 from einops import rearrange
+from positional_encodings.torch_encodings import PositionalEncoding1D
 
 class transformer(Module):
     # Build a transformer encoder
@@ -14,7 +15,8 @@ class transformer(Module):
             query_dimensions=64,
             feed_forward_dimensions=2048,
             activation="gelu",
-            time_emb_dim=256
+            time_emb_dim=256,
+            pos_emb_dim=256
         ):
         super().__init__()
         self.encoder_layer = TransformerEncoderLayer(
@@ -52,6 +54,7 @@ class transformer(Module):
             GELU(),
             Linear(n_heads*query_dimensions, n_heads*query_dimensions)
         )
+        self.pos_emb = PositionalEncoding1D(pos_emb_dim)
         self.feat_2d_mlp = Sequential(
             LayerNorm(768),
             Linear(768, 256)
@@ -93,8 +96,9 @@ class transformer(Module):
         ctx = self.feature_fusion_cat(feat0, feat1)
         #ctx = self.feature_fusion_cross_attention(feat0, feat1)
         x = x_t.squeeze(1)
-        x = x.unsqueeze(-1) + ctx
-        x = torch.reshape(x, (x.shape[0], -1, x.shape[-1]))
+        x = x.unsqueeze(-1).repeat(1, 1, 256)
+        x = x + self.pos_emb(x)
+        #x = torch.reshape(x, (x.shape[0], -1, x.shape[-1]))
         t = self.time_emb(t)
         c_2d = self.feat_2d_mlp(feat_2d)
         c = t + c_2d
@@ -104,9 +108,8 @@ class transformer(Module):
         for block in self.DiT_blocks:
             x = block(x, c)
         x = self.output_mlp(x)
-        #x = x[:, :-1, :]
-        x = torch.reshape(x, (x_t.shape[0], x_t.shape[2], x_t.shape[3], -1))
-        x = rearrange(x, 'b h w c -> b c h w')
+
+        x = rearrange(x, 'b h c -> b c h')
         return x
 
 
