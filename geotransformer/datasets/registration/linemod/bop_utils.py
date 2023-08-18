@@ -5,6 +5,7 @@ import open3d as o3d
 import numpy as np
 from scipy.spatial import cKDTree
 from typing import Optional
+from scipy.spatial.transform import Rotation
 #from focal_loss.focal_loss import FocalLoss
 
 
@@ -624,3 +625,35 @@ def statistical_outlier_rm(pcd, num, std=1.0):
     #o3d.io.write_point_cloud("./output/geotransformer.modelnet.rpmnet.stage4.gse.k3.max.oacl.stage2.sinkhorn/result/cl.ply", cl)
     pcd_cl = np.array(cl.points)
     return pcd_cl
+
+def save_transformed_pcd(output_dict, data_dict):
+    transform = data_dict['transform'].squeeze(0)
+    pred_rt = output_dict['pred_rt']
+    #quat = pred_rt[:4]
+    quat = pred_rt
+    # if nan in quaternion, set it to 1
+    if torch.isnan(quat).any():
+        quat = torch.tensor([1.0, 0.0, 0.0, 0.0]).cpu()
+    r = Rotation.from_quat(quat)
+    rot = r.as_matrix()
+    trans = transform[:3, 3].cpu().numpy()
+    est_transform = torch.from_numpy(get_transform_from_rotation_translation(rot, trans).astype(np.float32)).cuda()
+
+    src_points = data_dict['src_points'].squeeze(0)
+    ref_points = data_dict['ref_points'].squeeze(0)
+    gt_src_points = apply_transform(src_points, transform)
+    est_src_points = apply_transform(src_points, est_transform)
+
+    src_pcd_plt = o3d.geometry.PointCloud()
+    src_pcd_plt.points = o3d.utility.Vector3dVector(src_points.cpu().numpy())
+    o3d.io.write_point_cloud("./output/geotransformer.modelnet.rpmnet.stage4.gse.k3.max.oacl.stage2.sinkhorn/result/src_pcd_plt.ply", src_pcd_plt)
+    ref_pcd_plt = o3d.geometry.PointCloud()
+    ref_pcd_plt.points = o3d.utility.Vector3dVector(ref_points.cpu().numpy())
+    o3d.io.write_point_cloud("./output/geotransformer.modelnet.rpmnet.stage4.gse.k3.max.oacl.stage2.sinkhorn/result/ref_pcd_plt.ply", ref_pcd_plt)
+
+    gt_tran_pcd_plt = o3d.geometry.PointCloud()
+    gt_tran_pcd_plt.points = o3d.utility.Vector3dVector(gt_src_points.cpu().numpy())
+    o3d.io.write_point_cloud("./output/geotransformer.modelnet.rpmnet.stage4.gse.k3.max.oacl.stage2.sinkhorn/result/gt_tran_pcd_plt.ply", gt_tran_pcd_plt)
+    est_tran_pcd_plt = o3d.geometry.PointCloud()
+    est_tran_pcd_plt.points = o3d.utility.Vector3dVector(est_src_points.cpu().numpy())
+    o3d.io.write_point_cloud("./output/geotransformer.modelnet.rpmnet.stage4.gse.k3.max.oacl.stage2.sinkhorn/result/est_tran_pcd_plt.ply", est_tran_pcd_plt)

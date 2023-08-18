@@ -62,16 +62,14 @@ class DDPMTrainer(IterBasedDDPMTrainer):
         # self.loss_func = OverallLoss(cfg).cuda()
         self.evaluator = DDPMEvaluator(cfg).cuda()
 
-    def train_step(self, iteration, batch_latent_data):
-        loss_dict = self.model.get_loss(batch_latent_data)
+    def train_step(self, iteration, data_dict):
+        loss_dict = self.model.get_loss(data_dict)
         return loss_dict
 
     def val_step(self, iteration, data_dict):
-        latent_dict = self.encoder_model(data_dict)
-        feat_2d = self.dino_model(data_dict['rgb'].unsqueeze(0))
-        latent_dict['feat_2d'] = feat_2d.squeeze(0)
-        latent_dict['rt'] = data_dict['rt']
-        output_dict = self.model.sample(latent_dict)
+        feat_2d = self.dino_model(data_dict['rgb'])
+        data_dict['feat_2d'] = feat_2d.squeeze(0)
+        output_dict = self.model.sample(data_dict)
         result_dict = self.evaluator(output_dict, data_dict)
         return output_dict, result_dict
 

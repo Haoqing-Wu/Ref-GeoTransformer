@@ -19,24 +19,9 @@ class transformer(Module):
             pos_emb_dim=256
         ):
         super().__init__()
-        self.encoder_layer = TransformerEncoderLayer(
-            d_model=query_dimensions*n_heads,
-            nhead=n_heads,
-            dim_feedforward=feed_forward_dimensions,
-            dropout=0.1,
-            activation=activation,
-        )
-        self.transformer_encoder = TransformerEncoder(
-            encoder_layer=self.encoder_layer,
-            num_layers=n_layers
-        )
+
         self.output_mlp = Sequential(
-            #LayerNorm(query_dimensions*n_heads),
             Linear(query_dimensions*n_heads, 2)
-            #ReLU(),
-            #Linear(64, 32),
-            #ReLU(),
-            #Linear(32, 2)
         )
         self.feature_cross_attension = TransformerLayer(
             d_model=256, num_heads=8, dropout=None, activation_fn='ReLU'
@@ -90,21 +75,15 @@ class transformer(Module):
         
     def forward(self, x_t, t, feats):
 
-        feat0 = feats.get('ref_feats')
-        feat1 = feats.get('src_feats')
         feat_2d = feats.get('feat_2d')
-        ctx = self.feature_fusion_cat(feat0, feat1)
-        #ctx = self.feature_fusion_cross_attention(feat0, feat1)
         x = x_t.squeeze(1)
         x = x.unsqueeze(-1).repeat(1, 1, 256)
         x = x + self.pos_emb(x)
-        #x = torch.reshape(x, (x.shape[0], -1, x.shape[-1]))
+
         t = self.time_emb(t)
         c_2d = self.feat_2d_mlp(feat_2d)
         c = t + c_2d
-        #c_2d = c_2d.unsqueeze(1)
-        #x = torch.cat([x, c_2d], dim=1)
-        #x = self.transformer_encoder(x)
+
         for block in self.DiT_blocks:
             x = block(x, c)
         x = self.output_mlp(x)
@@ -118,7 +97,8 @@ class transformer(Module):
 
 
 def modulate(x, shift, scale):
-    return x * (1 + scale.unsqueeze(1)) + shift.unsqueeze(1)
+    #return x * (1 + scale.unsqueeze(1)) + shift.unsqueeze(1)
+    return shift.unsqueeze(1) * torch.cos(x * torch.pi) + scale.unsqueeze(1) * torch.sin(x * torch.pi)
 
 
 class DiTBlock(Module):

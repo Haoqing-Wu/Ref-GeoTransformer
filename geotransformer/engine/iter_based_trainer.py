@@ -275,7 +275,7 @@ class IterBasedDDPMTrainer(BaseTrainer):
         self.snapshot_steps = snapshot_steps
         self.snapshot_encoder_dir = cfg.snapshot_encoder_dir
         self.snapshot_ddpm_dir = cfg.snapshot_ddpm_dir
-        self.batch_size = cfg.ddpm.batch_size
+        
 
     def before_train(self) -> None:
         pass
@@ -331,6 +331,13 @@ class IterBasedDDPMTrainer(BaseTrainer):
         for iteration, data_dict in pbar:
             self.inner_iteration = iteration + 1
             data_dict = to_cuda(data_dict)
+
+            _ = data_dict.pop('features')
+            _ = data_dict.pop('neighbors')
+            _ = data_dict.pop('subsampling')
+            _ = data_dict.pop('upsampling')
+            _ = data_dict.pop('points')
+
             self.before_val_step(self.inner_iteration, data_dict)
             timer.add_prepare_time()
             output_dict, result_dict = self.val_step(self.inner_iteration, data_dict)
@@ -348,7 +355,7 @@ class IterBasedDDPMTrainer(BaseTrainer):
             torch.cuda.empty_cache()
             if iteration == 20:
                 # save the point cloud and corresponding prediction
-                #save_corr_pcd_ddpm(output_dict, data_dict)
+                save_transformed_pcd(output_dict, data_dict)
                 break
 
         self.after_val()
@@ -369,6 +376,13 @@ class IterBasedDDPMTrainer(BaseTrainer):
         for iteration, data_dict in pbar:
             self.inner_iteration = iteration + 1
             data_dict = to_cuda(data_dict)
+
+            _ = data_dict.pop('features')
+            _ = data_dict.pop('neighbors')
+            _ = data_dict.pop('subsampling')
+            _ = data_dict.pop('upsampling')
+            _ = data_dict.pop('points')
+
             self.before_val_step(self.inner_iteration, data_dict)
             timer.add_prepare_time()
             output_dict, result_dict = self.val_step(self.inner_iteration, data_dict)
@@ -416,21 +430,28 @@ class IterBasedDDPMTrainer(BaseTrainer):
         self.before_train()
         self.optimizer.zero_grad()
         while self.iteration < self.max_iteration:
-            batch_latent_data = []
-            for i in range(self.batch_size):
-                self.iteration += 1
-                data_dict = next(train_loader)
-                with torch.no_grad():
-                    latent_dict = self.encoder_model(to_cuda(data_dict))
-                    feat_2d = self.dino_model(to_cuda(data_dict['rgb'].unsqueeze(0)))
-                    latent_dict['feat_2d'] = feat_2d.squeeze(0)
-                    latent_dict['rt'] = data_dict['rt']
-                batch_latent_data.append(latent_dict)
-            batch_latent_data = to_cuda(batch_latent_data)
+    
+            self.iteration += 1
+            data_dict = next(train_loader)
+            with torch.no_grad():
+                data_dict = to_cuda(data_dict)
+                _ = data_dict.pop('features')
+                _ = data_dict.pop('neighbors')
+                _ = data_dict.pop('subsampling')
+                _ = data_dict.pop('upsampling')
+                _ = data_dict.pop('points')
+                
+                # concatenate each element list in data_dict into a single tensor
+                for key in data_dict.keys():
+                    if isinstance(data_dict[key], list):
+                        data_dict[key] = torch.cat(data_dict[key], dim=0)
+                
+                feat_2d = self.dino_model(data_dict['rgb'])
+                data_dict['feat_2d'] = feat_2d
             self.before_train_step(self.iteration, data_dict)
             self.timer.add_prepare_time()
             # forward
-            result_dict = self.train_step(self.iteration, batch_latent_data)
+            result_dict = self.train_step(self.iteration, data_dict)
             # backward & optimization
             result_dict['loss'].backward()
             self.after_backward(self.iteration, data_dict, result_dict)

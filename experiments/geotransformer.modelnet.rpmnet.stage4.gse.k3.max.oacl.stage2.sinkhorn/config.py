@@ -45,7 +45,7 @@ _C.data.twice_transform = False
 
 # train data
 _C.train = edict()
-_C.train.batch_size = 1
+_C.train.batch_size = 16
 _C.train.num_workers = 8
 _C.train.noise_magnitude = 0.05
 _C.train.class_indices = "all"
@@ -73,12 +73,12 @@ _C.ransac.num_iterations = 1000
 
 # optim
 _C.optim = edict()
-_C.optim.lr = 1e-4
+_C.optim.lr = 1e-5
 _C.optim.weight_decay = 1e-6
 _C.optim.warmup_steps = 1000
 _C.optim.eta_init = 0.1
 _C.optim.eta_min = 0.1
-_C.optim.max_iteration = 40000
+_C.optim.max_iteration = 30000
 _C.optim.snapshot_steps = 2000
 _C.optim.grad_acc_steps = 1
 
@@ -145,7 +145,7 @@ _C.dino.checkpoint_key = "teacher"
 # model - DDPM
 _C.ddpm = edict()
 _C.ddpm.batch_size = 1
-_C.ddpm.num_steps = 200
+_C.ddpm.num_steps = 1000
 _C.ddpm.beta_1 = 1e-4
 _C.ddpm.beta_T = 0.02
 _C.ddpm.sched_mode = 'linear'
@@ -160,7 +160,7 @@ _C.ddpm.time_emb_dim = 256
 
 # model - DDPM - Transformer
 _C.ddpm_transformer = edict()
-_C.ddpm_transformer.n_layers = 12
+_C.ddpm_transformer.n_layers = 8
 _C.ddpm_transformer.n_heads = 4
 _C.ddpm_transformer.query_dimensions = 64
 _C.ddpm_transformer.value_dimensions = 64

@@ -281,7 +281,7 @@ class DDPMEvaluator(nn.Module):
 
     @torch.no_grad()
     def evaluate_registration(self, output_dict, data_dict):
-        transform = data_dict['transform']
+        transform = data_dict['transform'].squeeze(0)
         pred_rt = output_dict['pred_rt']
         #quat = pred_rt[:4]
         quat = pred_rt

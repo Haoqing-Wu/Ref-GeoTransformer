@@ -172,7 +172,7 @@ def registration_collate_fn_stack_mode(
 
     # handle special keys: [ref_feats, src_feats] -> feats, [ref_points, src_points] -> points, lengths
     feats = torch.cat(collated_dict.pop('ref_feats') + collated_dict.pop('src_feats'), dim=0)
-    points_list = collated_dict.pop('ref_points') + collated_dict.pop('src_points')
+    points_list = collated_dict['ref_points'] + collated_dict['src_points']
     lengths = torch.LongTensor([points.shape[0] for points in points_list])
     points = torch.cat(points_list, dim=0)
 

@@ -168,48 +168,28 @@ class Cordi(Module):
         return d_dict
     
     
-    def get_loss(self, batch_latent_data):
+    def get_loss(self, d_dict):
 
-        d_dict = self.downsample(batch_latent_data)
-        #mat = d_dict.get('gt_corr_matrix').cuda()
-        mat = d_dict.get('gt_corr_score_matrix').cuda().unsqueeze(1)
-        ref_feats = d_dict.get('ref_feats').cuda()
-        src_feats = d_dict.get('src_feats').cuda()
         feat_2d = d_dict.get('feat_2d').cuda()
-        rt = d_dict.get('rt').cuda().unsqueeze(1)
+        rt = d_dict.get('rt').unsqueeze(1)
         feats = {}
-        feats['ref_feats'] = ref_feats
-        feats['src_feats'] = src_feats
         feats['feat_2d'] = feat_2d
-        #loss = self.diffusion.get_loss(mat, ref_feats, src_feats)
         t = torch.randint(0, self.diffusion_new.num_timesteps, (rt.shape[0],), device='cuda')
         loss_dict = self.diffusion_new.training_losses(self.net, rt, t, feats)
         loss = loss_dict["loss"].mean()
         return {'loss': loss}
     
-    def sample(self, latent_dict):
-        latent_dict = [latent_dict]
-        d_dict = self.downsample(latent_dict)
-        #mat_T = torch.randn((1, self.ref_sample_num, self.src_sample_num)).cuda()
-        #mat_T = torch.randn_like(d_dict.get('init_corr_matrix')).cuda().unsqueeze(1)
-        #mat_T = d_dict.get('init_corr_matrix').cuda()
-        ref_feats = d_dict.get('ref_feats').cuda()
-        src_feats = d_dict.get('src_feats').cuda()
+    def sample(self, d_dict):
+
         rt_T = torch.randn_like(d_dict.get('rt')).cuda().unsqueeze(1)
         feat_2d = d_dict.get('feat_2d').cuda()
         feats = {}
-        feats['ref_feats'] = ref_feats
-        feats['src_feats'] = src_feats
         feats['feat_2d'] = feat_2d
-        #pred_corr_mat = self.diffusion.sample(mat_T, ref_feats, src_feats).cpu()
         pred_rt = self.diffusion_new.p_sample_loop(
             self.net, rt_T.shape, rt_T, clip_denoised=False, model_kwargs=feats, progress=True, device='cuda'
         ).cpu()
         pred_rt = pred_rt.squeeze(1)
         return {
-            
-            'gt_corr_matrix': d_dict.get('gt_corr_matrix').squeeze(0),
-            'init_corr_matrix': d_dict.get('init_corr_matrix').squeeze(0),
             'ref_points': d_dict.get('ref_points').squeeze(0),
             'src_points': d_dict.get('src_points').squeeze(0),
             'pred_rt': pred_rt.squeeze(0),
