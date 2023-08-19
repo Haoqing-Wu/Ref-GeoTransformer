@@ -171,7 +171,7 @@ def registration_collate_fn_stack_mode(
             collated_dict[key].append(value)
 
     # handle special keys: [ref_feats, src_feats] -> feats, [ref_points, src_points] -> points, lengths
-    feats = torch.cat(collated_dict.pop('ref_feats') + collated_dict.pop('src_feats'), dim=0)
+    #feats = torch.cat(collated_dict.pop('ref_feats') + collated_dict.pop('src_feats'), dim=0)
     points_list = collated_dict['ref_points'] + collated_dict['src_points']
     lengths = torch.LongTensor([points.shape[0] for points in points_list])
     points = torch.cat(points_list, dim=0)
@@ -181,10 +181,11 @@ def registration_collate_fn_stack_mode(
         for key, value in collated_dict.items():
             collated_dict[key] = value[0]
 
-    collated_dict['features'] = feats
+    #collated_dict['features'] = feats
     if precompute_data:
         input_dict = precompute_data_stack_mode(points, lengths, num_stages, voxel_size, search_radius, neighbor_limits)
         collated_dict.update(input_dict)
+        pass
     else:
         collated_dict['points'] = points
         collated_dict['lengths'] = lengths
@@ -223,31 +224,18 @@ def calibrate_neighbors_stack_mode(
 
 def build_dataloader_stack_mode(
     dataset,
-    collate_fn,
-    num_stages,
-    voxel_size,
-    search_radius,
-    neighbor_limits,
     batch_size=1,
     num_workers=1,
     shuffle=False,
     drop_last=False,
     distributed=False,
-    precompute_data=True,
+
 ):
     dataloader = build_dataloader(
         dataset,
         batch_size=batch_size,
         num_workers=num_workers,
         shuffle=shuffle,
-        collate_fn=partial(
-            collate_fn,
-            num_stages=num_stages,
-            voxel_size=voxel_size,
-            search_radius=search_radius,
-            neighbor_limits=neighbor_limits,
-            precompute_data=precompute_data,
-        ),
         drop_last=drop_last,
         distributed=distributed,
     )

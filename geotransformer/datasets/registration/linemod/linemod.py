@@ -123,13 +123,13 @@ class LMODataset(data.Dataset):
 
         
         return {
-            'src_points': np.expand_dims(src_pcd.astype(np.float32),0),
-            'ref_points': np.expand_dims(tgt_pcd.astype(np.float32),0),
-            'rgb': np.expand_dims(rgb, 0),
-            'transform': np.expand_dims(transform.astype(np.float32), 0),
-            'src_feats': np.expand_dims(src_feats.astype(np.float32), 0),
-            'ref_feats': np.expand_dims(tgt_feats.astype(np.float32), 0),
-            'rt': np.expand_dims(quaternion.astype(np.float32), 0)   
+            'src_points': src_pcd.astype(np.float32),
+            'ref_points': tgt_pcd.astype(np.float32),
+            'rgb': rgb,
+            'transform': transform.astype(np.float32),
+            'src_feats': src_feats.astype(np.float32),
+            'ref_feats': tgt_feats.astype(np.float32),
+            'rt': quaternion.astype(np.float32)   
         }
 
 

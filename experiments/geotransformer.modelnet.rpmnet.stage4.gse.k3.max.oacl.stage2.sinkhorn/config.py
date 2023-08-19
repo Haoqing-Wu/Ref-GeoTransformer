@@ -45,7 +45,7 @@ _C.data.twice_transform = False
 
 # train data
 _C.train = edict()
-_C.train.batch_size = 16
+_C.train.batch_size = 32
 _C.train.num_workers = 8
 _C.train.noise_magnitude = 0.05
 _C.train.class_indices = "all"
@@ -73,13 +73,13 @@ _C.ransac.num_iterations = 1000
 
 # optim
 _C.optim = edict()
-_C.optim.lr = 1e-5
+_C.optim.lr = 1e-4
 _C.optim.weight_decay = 1e-6
 _C.optim.warmup_steps = 1000
 _C.optim.eta_init = 0.1
 _C.optim.eta_min = 0.1
 _C.optim.max_iteration = 30000
-_C.optim.snapshot_steps = 2000
+_C.optim.snapshot_steps = 500
 _C.optim.grad_acc_steps = 1
 
 # model - backbone

@@ -326,17 +326,13 @@ class IterBasedDDPMTrainer(BaseTrainer):
         summary_board = SummaryBoard(adaptive=True)
         timer = Timer()
         #total_iterations = len(self.val_loader)
-        total_iterations = 20
+        total_iterations = 10
         pbar = tqdm.tqdm(enumerate(self.val_loader), total=total_iterations)
         for iteration, data_dict in pbar:
             self.inner_iteration = iteration + 1
             data_dict = to_cuda(data_dict)
 
-            _ = data_dict.pop('features')
-            _ = data_dict.pop('neighbors')
-            _ = data_dict.pop('subsampling')
-            _ = data_dict.pop('upsampling')
-            _ = data_dict.pop('points')
+
 
             self.before_val_step(self.inner_iteration, data_dict)
             timer.add_prepare_time()
@@ -353,9 +349,10 @@ class IterBasedDDPMTrainer(BaseTrainer):
             )
             pbar.set_description(message)
             torch.cuda.empty_cache()
-            if iteration == 20:
+            #save_transformed_pcd(output_dict, data_dict)
+            if iteration == 10:
                 # save the point cloud and corresponding prediction
-                save_transformed_pcd(output_dict, data_dict)
+                #save_transformed_pcd(output_dict, data_dict)
                 break
 
         self.after_val()
@@ -377,11 +374,7 @@ class IterBasedDDPMTrainer(BaseTrainer):
             self.inner_iteration = iteration + 1
             data_dict = to_cuda(data_dict)
 
-            _ = data_dict.pop('features')
-            _ = data_dict.pop('neighbors')
-            _ = data_dict.pop('subsampling')
-            _ = data_dict.pop('upsampling')
-            _ = data_dict.pop('points')
+
 
             self.before_val_step(self.inner_iteration, data_dict)
             timer.add_prepare_time()
@@ -400,7 +393,7 @@ class IterBasedDDPMTrainer(BaseTrainer):
             torch.cuda.empty_cache()
             if iteration == 30:
                 # save the point cloud and corresponding prediction
-                #save_corr_pcd_ddpm(output_dict, data_dict)
+                save_transformed_pcd(output_dict, data_dict)
                 break
 
         self.after_val()
@@ -435,11 +428,7 @@ class IterBasedDDPMTrainer(BaseTrainer):
             data_dict = next(train_loader)
             with torch.no_grad():
                 data_dict = to_cuda(data_dict)
-                _ = data_dict.pop('features')
-                _ = data_dict.pop('neighbors')
-                _ = data_dict.pop('subsampling')
-                _ = data_dict.pop('upsampling')
-                _ = data_dict.pop('points')
+
                 
                 # concatenate each element list in data_dict into a single tensor
                 for key in data_dict.keys():

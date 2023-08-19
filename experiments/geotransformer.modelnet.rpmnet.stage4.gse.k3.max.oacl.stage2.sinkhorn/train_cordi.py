@@ -26,11 +26,9 @@ class DDPMTrainer(IterBasedDDPMTrainer):
 
         # dataloader
         start_time = time.time()
-        train_loader, val_loader, test_loader, neighbor_limits = train_valid_data_loader(cfg, self.distributed)
+        train_loader, val_loader, test_loader = train_valid_data_loader(cfg, self.distributed)
         loading_time = time.time() - start_time
         message = 'Data loader created: {:.3f}s collapsed.'.format(loading_time)
-        self.logger.info(message)
-        message = 'Calibrate neighbors: {}.'.format(neighbor_limits)
         self.logger.info(message)
         self.register_loader(train_loader, val_loader, test_loader)
 

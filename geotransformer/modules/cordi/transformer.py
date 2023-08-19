@@ -97,8 +97,8 @@ class transformer(Module):
 
 
 def modulate(x, shift, scale):
-    #return x * (1 + scale.unsqueeze(1)) + shift.unsqueeze(1)
-    return shift.unsqueeze(1) * torch.cos(x * torch.pi) + scale.unsqueeze(1) * torch.sin(x * torch.pi)
+    return x * (1 + scale.unsqueeze(1)) + shift.unsqueeze(1)
+    #return shift.unsqueeze(1) * torch.cos(x * torch.pi) + scale.unsqueeze(1) * torch.sin(x * torch.pi)
 
 
 class DiTBlock(Module):
