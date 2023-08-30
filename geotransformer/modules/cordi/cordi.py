@@ -65,8 +65,8 @@ class Cordi(Module):
         b_feat_2d = []
         for latent_dict in batch_latent_data:
             # Get the required data from the latent dictionary
-            ref_points = latent_dict.get('ref_points_c')
-            src_points = latent_dict.get('src_points_c')
+            ref_points = latent_dict.get('ref_points_sel_c')
+            src_points = latent_dict.get('src_points_sel_c')
             ref_feats = latent_dict.get('ref_feats_c')
             src_feats = latent_dict.get('src_feats_c')
             gt_corr = latent_dict.get('gt_node_corr_indices')

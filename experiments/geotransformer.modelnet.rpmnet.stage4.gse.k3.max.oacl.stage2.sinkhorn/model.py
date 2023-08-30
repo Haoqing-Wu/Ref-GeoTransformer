@@ -18,10 +18,12 @@ from geotransformer.datasets.registration.linemod.bop_utils import get_corr_scor
 
 
 class GeoTransformer(nn.Module):
-    def __init__(self, cfg):
+    def __init__(self, cfg, cordi=None):
         super(GeoTransformer, self).__init__()
         self.num_points_in_patch = cfg.model.num_points_in_patch
         self.matching_radius = cfg.model.ground_truth_matching_radius
+        self.sel_ref_num = cfg.ddpm.ref_sample_num
+        self.sel_src_num = cfg.ddpm.src_sample_num
 
         self.backbone = KPConvFPN(
             cfg.backbone.input_dim,
@@ -73,6 +75,9 @@ class GeoTransformer(nn.Module):
 
         self.optimal_transport = LearnableLogOptimalTransport(cfg.model.num_sinkhorn_iterations)
 
+        self.cordi = cordi
+        self.use_cordi = cfg.ddpm.use_ddpm_reference
+
     def forward(self, data_dict):
         output_dict = {}
 
@@ -101,6 +106,10 @@ class GeoTransformer(nn.Module):
         output_dict['ref_points'] = ref_points
         output_dict['src_points'] = src_points
 
+        sel_ref_indices = torch.randperm(ref_points_c.shape[0])[:self.sel_ref_num]
+        sel_src_indices = torch.randperm(src_points_c.shape[0])[:self.sel_src_num]
+        ref_points_sel_c = ref_points_c[sel_ref_indices]
+        src_points_sel_c = src_points_c[sel_src_indices]
         # 1. Generate ground truth node correspondences
         _, ref_node_masks, ref_node_knn_indices, ref_node_knn_masks = point_to_node_partition(
             ref_points_f, ref_points_c, self.num_points_in_patch
@@ -109,24 +118,31 @@ class GeoTransformer(nn.Module):
             src_points_f, src_points_c, self.num_points_in_patch
         )
 
+        ref_node_masks_sel = ref_node_masks[sel_ref_indices]
+        src_node_masks_sel = src_node_masks[sel_src_indices]
+        ref_node_knn_indices_sel = ref_node_knn_indices[sel_ref_indices]
+        src_node_knn_indices_sel = src_node_knn_indices[sel_src_indices]
+        ref_node_knn_masks_sel = ref_node_knn_masks[sel_ref_indices]
+        src_node_knn_masks_sel = src_node_knn_masks[sel_src_indices]
+
         ref_padded_points_f = torch.cat([ref_points_f, torch.zeros_like(ref_points_f[:1])], dim=0)
         src_padded_points_f = torch.cat([src_points_f, torch.zeros_like(src_points_f[:1])], dim=0)
-        ref_node_knn_points = index_select(ref_padded_points_f, ref_node_knn_indices, dim=0)
-        src_node_knn_points = index_select(src_padded_points_f, src_node_knn_indices, dim=0)
+        ref_node_knn_points = index_select(ref_padded_points_f, ref_node_knn_indices_sel, dim=0)
+        src_node_knn_points = index_select(src_padded_points_f, src_node_knn_indices_sel, dim=0)
 
         gt_node_corr_indices, gt_node_corr_overlaps = get_node_correspondences(
-            ref_points_c,
-            src_points_c,
+            ref_points_sel_c,
+            src_points_sel_c,
             ref_node_knn_points,
             src_node_knn_points,
             transform,
             self.matching_radius,
-            ref_masks=ref_node_masks,
-            src_masks=src_node_masks,
-            ref_knn_masks=ref_node_knn_masks,
-            src_knn_masks=src_node_knn_masks,
+            ref_masks=ref_node_masks_sel,
+            src_masks=src_node_masks_sel,
+            ref_knn_masks=ref_node_knn_masks_sel,
+            src_knn_masks=src_node_knn_masks_sel,
         )
-        gt_corr_score_matrix = get_corr_score_matrix(ref_points_c, src_points_c, transform)
+        gt_corr_score_matrix = get_corr_score_matrix(ref_points_sel_c, src_points_sel_c, transform)
 
         output_dict['gt_node_corr_indices'] = gt_node_corr_indices
         output_dict['gt_node_corr_overlaps'] = gt_node_corr_overlaps
@@ -141,17 +157,24 @@ class GeoTransformer(nn.Module):
         # 3. Conditional Transformer
         ref_feats_c = feats_c[:ref_length_c]
         src_feats_c = feats_c[ref_length_c:]
+
+        # randomly select N and M points from ref and src points and feats  
+        output_dict['ref_points_sel_c'] = ref_points_sel_c
+        output_dict['src_points_sel_c'] = src_points_sel_c
+
         ref_feats_c, src_feats_c = self.transformer(
             ref_points_c.unsqueeze(0),
             src_points_c.unsqueeze(0),
             ref_feats_c.unsqueeze(0),
             src_feats_c.unsqueeze(0),
         )
-        ref_feats_c_norm = F.normalize(ref_feats_c.squeeze(0), p=2, dim=1)
-        src_feats_c_norm = F.normalize(src_feats_c.squeeze(0), p=2, dim=1)
+        ref_feats_sel_c = ref_feats_c.squeeze(0)[sel_ref_indices]
+        src_feats_sel_c = src_feats_c.squeeze(0)[sel_src_indices]
+        ref_feats_sel_c_norm = F.normalize(ref_feats_sel_c, p=2, dim=1)
+        src_feats_sel_c_norm = F.normalize(src_feats_sel_c, p=2, dim=1)
 
-        output_dict['ref_feats_c'] = ref_feats_c_norm
-        output_dict['src_feats_c'] = src_feats_c_norm
+        output_dict['ref_feats_c'] = ref_feats_sel_c_norm
+        output_dict['src_feats_c'] = src_feats_sel_c_norm
 
         # 5. Head for fine level matching
         ref_feats_f = feats_f[:ref_length_f]
@@ -162,21 +185,21 @@ class GeoTransformer(nn.Module):
         # 6. Select topk nearest node correspondences
         with torch.no_grad():
             ref_node_corr_indices, src_node_corr_indices, node_corr_scores = self.coarse_matching(
-                ref_feats_c_norm, src_feats_c_norm, ref_node_masks, src_node_masks
+                ref_feats_sel_c_norm, src_feats_sel_c_norm, ref_node_masks_sel, src_node_masks_sel
             )
 
             output_dict['ref_node_corr_indices'] = ref_node_corr_indices
             output_dict['src_node_corr_indices'] = src_node_corr_indices
 
             ref_node_corr_indices_m, src_node_corr_indices_m, _ = self.coarse_matching_m(
-                ref_feats_c_norm, src_feats_c_norm, ref_node_masks, src_node_masks
+                ref_feats_sel_c_norm, src_feats_sel_c_norm, ref_node_masks_sel, src_node_masks_sel
             )
 
             output_dict['ref_node_corr_indices_m'] = ref_node_corr_indices_m
             output_dict['src_node_corr_indices_m'] = src_node_corr_indices_m
 
             ref_node_corr_indices_s, src_node_corr_indices_s, _ = self.coarse_matching_s(
-                ref_feats_c_norm, src_feats_c_norm, ref_node_masks, src_node_masks
+                ref_feats_sel_c_norm, src_feats_sel_c_norm, ref_node_masks_sel, src_node_masks_sel
             )
 
             output_dict['ref_node_corr_indices_s'] = ref_node_corr_indices_s
@@ -187,10 +210,19 @@ class GeoTransformer(nn.Module):
                 ref_node_corr_indices, src_node_corr_indices, node_corr_scores = self.coarse_target(
                     gt_node_corr_indices, gt_node_corr_overlaps
                 )
+        
+        with torch.no_grad():
+            if self.use_cordi:
+                cordi_output_dict = self.cordi.sample(output_dict)
+                pred_node_corr_pairs = cordi_output_dict['pred_corr']
+                pred_node_corr_scores = cordi_output_dict['pred_corr_mat']
+                ref_node_corr_indices = pred_node_corr_pairs[:, 0]
+                src_node_corr_indices = pred_node_corr_pairs[:, 1]
+                node_corr_scores = pred_node_corr_scores
 
         # 7.2 Generate batched node points & feats
-        ref_node_corr_knn_indices = ref_node_knn_indices[ref_node_corr_indices]  # (P, K)
-        src_node_corr_knn_indices = src_node_knn_indices[src_node_corr_indices]  # (P, K)
+        ref_node_corr_knn_indices = ref_node_knn_indices_sel[ref_node_corr_indices]  # (P, K)
+        src_node_corr_knn_indices = src_node_knn_indices_sel[src_node_corr_indices]  # (P, K)
         ref_node_corr_knn_masks = ref_node_knn_masks[ref_node_corr_indices]  # (P, K)
         src_node_corr_knn_masks = src_node_knn_masks[src_node_corr_indices]  # (P, K)
         ref_node_corr_knn_points = ref_node_knn_points[ref_node_corr_indices]  # (P, K, 3)
@@ -235,7 +267,7 @@ class GeoTransformer(nn.Module):
         return output_dict
 
 
-def create_model(cfg):
+def create_model(cfg, cordi=None):
     model = GeoTransformer(cfg)
     return model
 

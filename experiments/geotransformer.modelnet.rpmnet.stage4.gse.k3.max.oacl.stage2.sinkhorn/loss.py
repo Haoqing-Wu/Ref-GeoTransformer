@@ -168,8 +168,8 @@ class DDPMEvaluator(nn.Module):
 
     @torch.no_grad()
     def evaluate_coarse_geotransformer(self, output_dict):
-        ref_length_c = output_dict['ref_points_c'].shape[0]
-        src_length_c = output_dict['src_points_c'].shape[0]
+        ref_length_c = output_dict['ref_points_sel_c'].shape[0]
+        src_length_c = output_dict['src_points_sel_c'].shape[0]
         gt_node_corr_overlaps = output_dict['gt_node_corr_overlaps']
         gt_node_corr_indices = output_dict['gt_node_corr_indices']
         masks = torch.gt(gt_node_corr_overlaps, self.acceptance_overlap)

@@ -54,7 +54,7 @@ class transformer(Module):
         )
         self.feat_2d_mlp = Sequential(
             LayerNorm(768),
-            Linear(768, 256)
+            Linear(768, 128)
         )
 
     def feature_fusion_cat(self, feat0, feat1):
@@ -90,7 +90,7 @@ class transformer(Module):
         feat0 = feats.get('ref_feats')
         feat1 = feats.get('src_feats')
         feat_2d = feats.get('feat_2d')
-        ctx = self.feature_fusion_cat(feat0, feat1)
+        ctx = self.feature_fusion_dist(feat0, feat1)
         #ctx = self.feature_fusion_cross_attention(feat0, feat1)
         x = x_t.squeeze(1)
         x = x.unsqueeze(-1) + ctx
@@ -102,7 +102,7 @@ class transformer(Module):
         #x = torch.cat([x, c_2d], dim=1)
         #x = self.transformer_encoder(x)
         for block in self.DiT_blocks:
-            x = block(x, c)
+            x = block(x, t)
         x = self.output_mlp(x)
         #x = x[:, :-1, :]
         x = torch.reshape(x, (x_t.shape[0], x_t.shape[2], x_t.shape[3], -1))
