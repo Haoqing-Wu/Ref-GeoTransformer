@@ -5,6 +5,9 @@ from geotransformer.modules.cordi.ddpm import *
 from geotransformer.modules.cordi.transformer import *
 from geotransformer.datasets.registration.linemod.bop_utils import *
 from geotransformer.modules.diffusion import create_diffusion
+import networkx as nx
+import fastnode2vec
+from fastnode2vec import Node2Vec, Graph
 
 class Cordi(Module):
 
@@ -164,6 +167,24 @@ class Cordi(Module):
         }
         return d_dict
     
+    def node2vector(self, pcd, weighted=True, radius=0.1):
+        pcd = pcd.cpu().numpy()
+        
+        weighted_node_list = []
+        for i in range(pcd.shape[0]):
+            for j in range(pcd.shape[0]):
+                dist = np.linalg.norm(pcd[i] - pcd[j])
+                # append tuple of nodes and weight in list
+                weighted_node_list.append((str(i), str(j), dist))
+        G = Graph(weighted_node_list, directed=False, weighted=True)
+        node2vec = Node2Vec(G, dim=64, walk_length=20, window=10, workers=1)
+        node2vec.train(epochs=10, verbose=False)
+        vectors = []
+        for i in range(pcd.shape[0]):
+            vectors.append(node2vec.wv[str(i)])
+        vectors = torch.tensor(vectors)
+        return vectors
+
     
     def get_loss(self, batch_latent_data):
 
@@ -173,10 +194,16 @@ class Cordi(Module):
         ref_feats = d_dict.get('ref_feats').cuda()
         src_feats = d_dict.get('src_feats').cuda()
         feat_2d = d_dict.get('feat_2d').cuda()
+        ref_points = d_dict.get('ref_points').squeeze(0)
+        src_points = d_dict.get('src_points').squeeze(0)
+        ref_node_vec = self.node2vector(ref_points).cuda()
+        src_node_vec = self.node2vector(src_points).cuda()
         feats = {}
         feats['ref_feats'] = ref_feats
         feats['src_feats'] = src_feats
         feats['feat_2d'] = feat_2d
+        feats['ref_node_vec'] = ref_node_vec.unsqueeze(0)
+        feats['src_node_vec'] = src_node_vec.unsqueeze(0)
         #loss = self.diffusion.get_loss(mat, ref_feats, src_feats)
         t = torch.randint(0, self.diffusion_new.num_timesteps, (mat.shape[0],), device='cuda')
         loss_dict = self.diffusion_new.training_losses(self.net, mat, t, feats)
@@ -191,11 +218,17 @@ class Cordi(Module):
         #mat_T = d_dict.get('init_corr_matrix').cuda()
         ref_feats = d_dict.get('ref_feats').cuda()
         src_feats = d_dict.get('src_feats').cuda()
+        ref_points = d_dict.get('ref_points').squeeze(0)
+        src_points = d_dict.get('src_points').squeeze(0)
+        ref_node_vec = self.node2vector(ref_points).cuda()
+        src_node_vec = self.node2vector(src_points).cuda()
         feat_2d = d_dict.get('feat_2d').cuda()
         feats = {}
         feats['ref_feats'] = ref_feats
         feats['src_feats'] = src_feats
         feats['feat_2d'] = feat_2d
+        feats['ref_node_vec'] = ref_node_vec.unsqueeze(0)
+        feats['src_node_vec'] = src_node_vec.unsqueeze(0)
         #pred_corr_mat = self.diffusion.sample(mat_T, ref_feats, src_feats).cpu()
         pred_corr_mat = self.diffusion_new.p_sample_loop(
             self.net, mat_T.shape, mat_T, clip_denoised=False, model_kwargs=feats, progress=True, device='cuda'

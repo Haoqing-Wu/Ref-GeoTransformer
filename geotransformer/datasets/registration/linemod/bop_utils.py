@@ -105,6 +105,17 @@ def sort_pcd_from_center(pcd):
     pcd = pcd[idx]
     return pcd
 
+def sort_pcd_from_min_xyz(pcd):
+    r"""Sort a point cloud from the minimum x, y, z.
+    """
+    min_xyz = np.min(pcd, axis=0)
+    pcd_v = pcd - min_xyz
+    dist = np.sqrt(np.sum(np.square(pcd_v), axis=1))
+    idx = np.argsort(dist)
+    pcd = pcd[idx]
+    return pcd
+
+
 def transformation_pcd(pcd, rot, trans):
     r"""Transform a point cloud with a rotation matrix and a translation vector.
     """

@@ -107,7 +107,9 @@ class GeoTransformer(nn.Module):
         output_dict['src_points'] = src_points
 
         sel_ref_indices = torch.randperm(ref_points_c.shape[0])[:self.sel_ref_num]
+        sel_ref_indices = torch.sort(sel_ref_indices)[0]
         sel_src_indices = torch.randperm(src_points_c.shape[0])[:self.sel_src_num]
+        sel_src_indices = torch.sort(sel_src_indices)[0]
         ref_points_sel_c = ref_points_c[sel_ref_indices]
         src_points_sel_c = src_points_c[sel_src_indices]
         # 1. Generate ground truth node correspondences

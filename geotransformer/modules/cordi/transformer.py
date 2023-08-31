@@ -4,6 +4,7 @@ from torch.nn import Module, TransformerEncoder, TransformerEncoderLayer, Sequen
 from geotransformer.modules.transformer.vanilla_transformer import TransformerLayer
 from timm.models.vision_transformer import Attention, Mlp
 from einops import rearrange
+from positional_encodings.torch_encodings import PositionalEncoding2D
 
 class transformer(Module):
     # Build a transformer encoder
@@ -56,6 +57,7 @@ class transformer(Module):
             LayerNorm(768),
             Linear(768, 128)
         )
+        self.pos_emb = PositionalEncoding2D(128)
 
     def feature_fusion_cat(self, feat0, feat1):
         feat_matrix = torch.cat([feat0.unsqueeze(2).repeat(1, 1, feat1.shape[1], 1),
@@ -90,17 +92,20 @@ class transformer(Module):
         feat0 = feats.get('ref_feats')
         feat1 = feats.get('src_feats')
         feat_2d = feats.get('feat_2d')
+        ref_node_vec = feats.get('ref_node_vec')
+        src_node_vec = feats.get('src_node_vec')
         ctx = self.feature_fusion_dist(feat0, feat1)
-        #ctx = self.feature_fusion_cross_attention(feat0, feat1)
-        x = x_t.squeeze(1)
-        x = x.unsqueeze(-1) + ctx
+        graph_emb = self.feature_fusion_cat(ref_node_vec, src_node_vec)
+
+        x = x_t.squeeze(1).unsqueeze(-1)
+        x = x.repeat(1, 1, 1, ctx.shape[-1])
+        pos = self.pos_emb(x)
+        x = x + ctx + graph_emb
         x = torch.reshape(x, (x.shape[0], -1, x.shape[-1]))
         t = self.time_emb(t)
         c_2d = self.feat_2d_mlp(feat_2d)
         c = t + c_2d
-        #c_2d = c_2d.unsqueeze(1)
-        #x = torch.cat([x, c_2d], dim=1)
-        #x = self.transformer_encoder(x)
+
         for block in self.DiT_blocks:
             x = block(x, t)
         x = self.output_mlp(x)
