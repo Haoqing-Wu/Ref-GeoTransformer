@@ -200,7 +200,7 @@ def calibrate_neighbors_stack_mode(
     hist_n = int(np.ceil(4 / 3 * np.pi * (search_radius / voxel_size + 1) ** 3))
     neighbor_hists = np.zeros((num_stages, hist_n), dtype=np.int32)
     max_neighbor_limits = [hist_n] * num_stages
-
+ 
     # Get histogram of neighborhood sizes i in 1 epoch max.
     for i in range(len(dataset)):
         data_dict = collate_fn(
@@ -212,6 +212,7 @@ def calibrate_neighbors_stack_mode(
         hists = [np.bincount(c, minlength=hist_n)[:hist_n] for c in counts]
         neighbor_hists += np.vstack(hists)
 
+        sum = np.sum(neighbor_hists, axis=1)
         if np.min(np.sum(neighbor_hists, axis=1)) > sample_threshold:
             break
 

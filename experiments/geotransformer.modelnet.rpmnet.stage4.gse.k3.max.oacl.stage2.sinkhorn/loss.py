@@ -198,7 +198,7 @@ class DDPMEvaluator(nn.Module):
 
     @torch.no_grad()
     def evaluate_coarse(self, output_dict):   
-        gt_corr_matrix = (output_dict['gt_corr_matrix'] + 1) / 2
+        gt_corr_matrix = output_dict['gt_corr_matrix']
         pred_corr = output_dict['pred_corr']
         if len(pred_corr) < 1:
             precision = 0.0
@@ -251,22 +251,8 @@ class DDPMEvaluator(nn.Module):
         num_corr_0_95 = output_dict['num_corr_0_95']
         num_corr_1 = output_dict['num_corr_1']
 
-        init_corr_matrix = (output_dict['init_corr_matrix'] + 1) / 2
-        init_ref_corr_indices = []
-        init_src_corr_indices = []
-        # get the indices of reference and source points that have correspondences from init_corr_matrix
-        for i in range(init_corr_matrix.shape[0]):
-            for j in range(init_corr_matrix.shape[1]):
-                if init_corr_matrix[i, j] == 1:
-                    init_ref_corr_indices.append(i)
-                    init_src_corr_indices.append(j)
-                   
-            # compute the mean of the correspondences
-        init_precision = gt_corr_matrix[init_ref_corr_indices, init_src_corr_indices].mean()
-
-        corr_num = output_dict['init_corr_num']
         return precision, precision_1_2, precision_1_4, precision_0_9, precision_0_95, precision_1, \
-                num_corr_0_9, num_corr_0_95, num_corr_1, init_precision, corr_num
+                num_corr_0_9, num_corr_0_95, num_corr_1
 
     @torch.no_grad()
     def evaluate_fine(self, output_dict, data_dict):
@@ -295,7 +281,7 @@ class DDPMEvaluator(nn.Module):
 
     def forward(self, output_dict, latent_dict):
         c_precision, c_precision_1_2, c_precision_1_4, precision_0_9, pred_corr_0_95, precision_1, \
-            num_corr_0_9, num_corr_0_95, num_corr_1, init_precision, corr_num = self.evaluate_coarse(output_dict)
+            num_corr_0_9, num_corr_0_95, num_corr_1 = self.evaluate_coarse(output_dict)
         geo_precision, geo_precision_m, geo_precision_s = self.evaluate_coarse_geotransformer(latent_dict)
         return {
             'PIR': c_precision,
@@ -307,8 +293,6 @@ class DDPMEvaluator(nn.Module):
             'Corr_num_0_9': num_corr_0_9,
             'Corr_num_0_95': num_corr_0_95,
             'Corr_num_1': num_corr_1,
-            'IIR': init_precision, 
-            'Corr_num': corr_num,
             'GIR': geo_precision,
             'GIR_M': geo_precision_m,
             'GIR_S': geo_precision_s

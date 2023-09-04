@@ -96,6 +96,8 @@ class RPEConditionalTransformer(nn.Module):
 
     def forward(self, feats0, feats1, embeddings0, embeddings1, masks0=None, masks1=None):
         attention_scores = []
+        mid_feat0 = []
+        mid_feat1 = []
         for i, block in enumerate(self.blocks):
             if block == 'self':
                 feats0, scores0 = self.layers[i](feats0, feats0, embeddings0, memory_masks=masks0)
@@ -109,12 +111,14 @@ class RPEConditionalTransformer(nn.Module):
                 else:
                     feats0, scores0 = self.layers[i](feats0, feats1, memory_masks=masks1)
                     feats1, scores1 = self.layers[i](feats1, feats0, memory_masks=masks0)
+            mid_feat0.append(feats0)
+            mid_feat1.append(feats1)
             if self.return_attention_scores:
                 attention_scores.append([scores0, scores1])
         if self.return_attention_scores:
             return feats0, feats1, attention_scores
         else:
-            return feats0, feats1
+            return feats0, feats1, mid_feat0, mid_feat1
 
 
 class LRPEConditionalTransformer(nn.Module):

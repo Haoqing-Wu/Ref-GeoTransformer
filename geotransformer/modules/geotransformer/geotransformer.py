@@ -140,7 +140,7 @@ class GeometricTransformer(nn.Module):
         ref_feats = self.in_proj(ref_feats)
         src_feats = self.in_proj(src_feats)
 
-        ref_feats, src_feats = self.transformer(
+        ref_feats, src_feats, ref_mid_feats, src_mid_feats= self.transformer(
             ref_feats,
             src_feats,
             ref_embeddings,
@@ -152,4 +152,4 @@ class GeometricTransformer(nn.Module):
         ref_feats = self.out_proj(ref_feats)
         src_feats = self.out_proj(src_feats)
 
-        return ref_feats, src_feats
+        return ref_feats, src_feats, ref_mid_feats, src_mid_feats

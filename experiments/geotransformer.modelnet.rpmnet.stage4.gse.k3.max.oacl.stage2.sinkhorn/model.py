@@ -164,7 +164,7 @@ class GeoTransformer(nn.Module):
         output_dict['ref_points_sel_c'] = ref_points_sel_c
         output_dict['src_points_sel_c'] = src_points_sel_c
 
-        ref_feats_c, src_feats_c = self.transformer(
+        ref_feats_c, src_feats_c, ref_mid_feats, src_mid_feats= self.transformer(
             ref_points_c.unsqueeze(0),
             src_points_c.unsqueeze(0),
             ref_feats_c.unsqueeze(0),
@@ -174,6 +174,21 @@ class GeoTransformer(nn.Module):
         src_feats_sel_c = src_feats_c.squeeze(0)[sel_src_indices]
         ref_feats_sel_c_norm = F.normalize(ref_feats_sel_c, p=2, dim=1)
         src_feats_sel_c_norm = F.normalize(src_feats_sel_c, p=2, dim=1)
+
+        ref_mid_feats_sel = []
+        src_mid_feats_sel = []
+        for feat in ref_mid_feats:
+            feat_sel = feat.squeeze(0)[sel_ref_indices]
+            feat_sel_norm = F.normalize(feat_sel, p=2, dim=1).unsqueeze(0)
+            ref_mid_feats_sel.append(feat_sel_norm)
+        for feat in src_mid_feats:
+            feat_sel = feat.squeeze(0)[sel_src_indices]
+            feat_sel_norm = F.normalize(feat_sel, p=2, dim=1).unsqueeze(0)
+            src_mid_feats_sel.append(feat_sel_norm)
+        
+        output_dict['ref_mid_feats_sel'] = torch.cat(ref_mid_feats_sel, dim=0)
+        output_dict['src_mid_feats_sel'] = torch.cat(src_mid_feats_sel, dim=0)
+
 
         output_dict['ref_feats_c'] = ref_feats_sel_c_norm
         output_dict['src_feats_c'] = src_feats_sel_c_norm

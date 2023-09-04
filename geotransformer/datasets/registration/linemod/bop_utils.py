@@ -506,7 +506,7 @@ def save_corr_pcd_ddpm(output_dict, data_dict):
     tgt_corr_indices = pred_corr[:, 0]
     src_corr_indices = pred_corr[:, 1]
 
-    gt_corr_matrix = output_dict['gt_corr_matrix'].numpy()
+    gt_corr_matrix = output_dict['gt_corr_matrix'].cpu().numpy()
 
     gt_transform = data_dict['transform'].cpu().numpy()
     shift = np.array([[1, 0, 0, 1],
