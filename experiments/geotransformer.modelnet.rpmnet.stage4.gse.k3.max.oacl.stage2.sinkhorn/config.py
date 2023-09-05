@@ -106,7 +106,7 @@ _C.model.num_sinkhorn_iterations = 100
 _C.coarse_matching = edict()
 _C.coarse_matching.num_targets = 128
 _C.coarse_matching.overlap_threshold = 0.1
-_C.coarse_matching.num_correspondences = 50
+_C.coarse_matching.num_correspondences = 40
 _C.coarse_matching.num_correspondences_m = 32
 _C.coarse_matching.num_correspondences_s = 16
 _C.coarse_matching.dual_normalization = True
@@ -149,7 +149,7 @@ _C.ddpm.num_steps = 400
 _C.ddpm.beta_1 = 1e-4
 _C.ddpm.beta_T = 0.02
 _C.ddpm.sched_mode = 'linear'
-_C.ddpm.ref_sample_num = 40
+_C.ddpm.ref_sample_num = 39
 _C.ddpm.src_sample_num = 80
 _C.ddpm.adaptive_size = False
 _C.ddpm.size_factor = 0.8
@@ -157,7 +157,7 @@ _C.ddpm.sample_topk = 32
 _C.ddpm.sample_topk_1_2 = 16
 _C.ddpm.sample_topk_1_4 = 8
 _C.ddpm.time_emb_dim = 256
-_C.ddpm.dist_embedding_dim = 128
+_C.ddpm.geo_embedding_dim = 128
 _C.ddpm.use_ddpm_reference = False
 
 # model - DDPM - Transformer

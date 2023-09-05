@@ -2,6 +2,7 @@ import torch
 import math
 from torch.nn import Module, TransformerEncoder, TransformerEncoderLayer, Sequential, Linear, LayerNorm, ReLU, GELU, SiLU, ModuleList
 from geotransformer.modules.transformer.vanilla_transformer import TransformerLayer
+
 from timm.models.vision_transformer import Attention, Mlp
 from einops import rearrange
 from positional_encodings.torch_encodings import PositionalEncoding2D
@@ -103,6 +104,7 @@ class transformer(Module):
         feat0_dist_emb = feats['ref_dist_emb']
         feat1_dist_emb = feats['src_dist_emb']
         dist_emb = self.feature_fusion_cat(feat0_dist_emb, feat1_dist_emb)
+        dist_emb = torch.reshape(dist_emb, (dist_emb.shape[0], -1, dist_emb.shape[-1]))
         feat_2d = feats.get('feat_2d')
         mid_feats0 = feats.get('ref_mid_feats')
         mid_feats1 = feats.get('src_mid_feats')

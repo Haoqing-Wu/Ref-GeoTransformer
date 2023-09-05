@@ -5,6 +5,7 @@ from geotransformer.modules.cordi.ddpm import *
 from geotransformer.modules.cordi.transformer import *
 from geotransformer.datasets.registration.linemod.bop_utils import *
 from geotransformer.modules.diffusion import create_diffusion
+from geotransformer.modules.geotransformer.geotransformer import GeometricStructureEmbedding
 from fastnode2vec import Node2Vec, Graph
 
 class Cordi(Module):
@@ -14,7 +15,7 @@ class Cordi(Module):
         self.cfg = cfg
         self.ref_sample_num = cfg.ddpm.ref_sample_num
         self.src_sample_num = cfg.ddpm.src_sample_num
-        self.dist_embedding_dim = cfg.ddpm.dist_embedding_dim
+        self.geo_embedding_dim = cfg.ddpm.geo_embedding_dim
         self.adaptive_size = cfg.ddpm.adaptive_size
         self.size_factor = cfg.ddpm.size_factor
         self.sample_topk = cfg.ddpm.sample_topk
@@ -52,14 +53,31 @@ class Cordi(Module):
                 time_emb_dim=cfg.ddpm.time_emb_dim
             )
         self.dist_emb_ref = nn.Sequential(
-            nn.Linear(self.ref_sample_num, self.dist_embedding_dim),
+            nn.Linear(self.ref_sample_num, self.geo_embedding_dim),
             nn.ReLU(),
-            nn.Linear(self.dist_embedding_dim, self.dist_embedding_dim)
+            nn.Linear(self.geo_embedding_dim, self.geo_embedding_dim)
         )
         self.dist_emb_src = nn.Sequential(
-            nn.Linear(self.src_sample_num, self.dist_embedding_dim),
+            nn.Linear(self.src_sample_num, self.geo_embedding_dim),
             nn.ReLU(),
-            nn.Linear(self.dist_embedding_dim, self.dist_embedding_dim)
+            nn.Linear(self.geo_embedding_dim, self.geo_embedding_dim)
+        )
+        self.geo_embedding = GeometricStructureEmbedding(
+            hidden_dim=cfg.ddpm.geo_embedding_dim,
+            sigma_d=cfg.geotransformer.sigma_d,
+            sigma_a=cfg.geotransformer.sigma_a,
+            angle_k=cfg.geotransformer.angle_k,
+            reduction_a=cfg.geotransformer.reduction_a
+        )
+        self.geo_proj_ref = nn.Sequential(
+            nn.Linear(self.ref_sample_num*cfg.ddpm.geo_embedding_dim, cfg.ddpm.geo_embedding_dim),
+            nn.ReLU(),
+            nn.Linear(cfg.ddpm.geo_embedding_dim, cfg.ddpm.geo_embedding_dim)
+        )
+        self.geo_proj_src = nn.Sequential(
+            nn.Linear(self.src_sample_num*cfg.ddpm.geo_embedding_dim, cfg.ddpm.geo_embedding_dim),
+            nn.ReLU(),
+            nn.Linear(cfg.ddpm.geo_embedding_dim, cfg.ddpm.geo_embedding_dim)
         )
 
     def downsample(self, batch_latent_data, slim=False):
@@ -169,6 +187,14 @@ class Cordi(Module):
         src_dist_emb = self.dist_emb_src(src_dist_matrix)
 
         return ref_dist_emb, src_dist_emb     
+
+    def geometric_embedding(self, ref_pcd, src_pcd):
+        ref_geo_emb = self.geo_embedding(ref_pcd)
+        src_geo_emb = self.geo_embedding(src_pcd)
+        ref_geo_emb = self.geo_proj_ref(ref_geo_emb.reshape(ref_geo_emb.shape[0], ref_geo_emb.shape[1], -1))
+        src_geo_emb = self.geo_proj_src(src_geo_emb.reshape(src_geo_emb.shape[0], src_geo_emb.shape[1], -1))
+
+        return ref_geo_emb, src_geo_emb
     
     def get_loss(self, batch_latent_data):
 
@@ -180,9 +206,9 @@ class Cordi(Module):
         ref_mid_feats = d_dict.get('ref_mid_feats').cuda()
         src_mid_feats = d_dict.get('src_mid_feats').cuda()
         feat_2d = d_dict.get('feat_2d').cuda()
-        ref_points = d_dict.get('ref_points').squeeze(0)
-        src_points = d_dict.get('src_points').squeeze(0)
-        ref_dist_emb, src_dist_emb = self.dist_embedding(ref_points, src_points)
+        ref_points = d_dict.get('ref_points')
+        src_points = d_dict.get('src_points')
+        ref_dist_emb, src_dist_emb = self.geometric_embedding(ref_points, src_points)
         #ref_node_vec = self.node2vector(ref_points).cuda()
         #src_node_vec = self.node2vector(src_points).cuda()
         feats = {}
@@ -211,9 +237,9 @@ class Cordi(Module):
         src_feats = d_dict.get('src_feats').cuda()
         ref_mid_feats = d_dict.get('ref_mid_feats').cuda()
         src_mid_feats = d_dict.get('src_mid_feats').cuda()
-        ref_points = d_dict.get('ref_points').squeeze(0)
-        src_points = d_dict.get('src_points').squeeze(0)
-        ref_dist_emb, src_dist_emb = self.dist_embedding(ref_points, src_points)
+        ref_points = d_dict.get('ref_points')
+        src_points = d_dict.get('src_points')
+        ref_dist_emb, src_dist_emb = self.geometric_embedding(ref_points, src_points)
         #ref_node_vec = self.node2vector(ref_points).cuda()
         #src_node_vec = self.node2vector(src_points).cuda()
         feat_2d = d_dict.get('feat_2d').cuda()

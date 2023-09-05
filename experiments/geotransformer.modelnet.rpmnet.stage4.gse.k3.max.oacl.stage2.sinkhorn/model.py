@@ -106,6 +106,9 @@ class GeoTransformer(nn.Module):
         output_dict['ref_points'] = ref_points
         output_dict['src_points'] = src_points
 
+        if ref_points_c.shape[0] < self.sel_ref_num:
+            print('ref_points_c.shape[0] < sel_ref_num')
+            pass
         sel_ref_indices = torch.randperm(ref_points_c.shape[0])[:self.sel_ref_num]
         sel_ref_indices = torch.sort(sel_ref_indices)[0]
         sel_src_indices = torch.randperm(src_points_c.shape[0])[:self.sel_src_num]
