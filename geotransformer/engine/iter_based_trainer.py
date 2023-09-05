@@ -326,7 +326,7 @@ class IterBasedDDPMTrainer(BaseTrainer):
         summary_board = SummaryBoard(adaptive=True)
         timer = Timer()
         #total_iterations = len(self.val_loader)
-        total_iterations = 10
+        total_iterations = 30
         pbar = tqdm.tqdm(enumerate(self.val_loader), total=total_iterations)
         for iteration, data_dict in pbar:
             self.inner_iteration = iteration + 1
@@ -350,9 +350,9 @@ class IterBasedDDPMTrainer(BaseTrainer):
             pbar.set_description(message)
             torch.cuda.empty_cache()
             #save_transformed_pcd(output_dict, data_dict)
-            if iteration == 10:
+            if iteration == 30:
                 # save the point cloud and corresponding prediction
-                #save_transformed_pcd(output_dict, data_dict)
+                save_transformed_pcd(output_dict, data_dict)
                 break
 
         self.after_val()
@@ -368,7 +368,7 @@ class IterBasedDDPMTrainer(BaseTrainer):
         summary_board = SummaryBoard(adaptive=True)
         timer = Timer()
         #total_iterations = len(self.test_loader)
-        total_iterations = 30
+        total_iterations = 50
         pbar = tqdm.tqdm(enumerate(self.test_loader), total=total_iterations)
         for iteration, data_dict in pbar:
             self.inner_iteration = iteration + 1
@@ -391,9 +391,9 @@ class IterBasedDDPMTrainer(BaseTrainer):
             )
             pbar.set_description(message)
             torch.cuda.empty_cache()
-            if iteration == 30:
+            if iteration == 50:
                 # save the point cloud and corresponding prediction
-                save_transformed_pcd(output_dict, data_dict)
+                #save_transformed_pcd(output_dict, data_dict)
                 break
 
         self.after_val()

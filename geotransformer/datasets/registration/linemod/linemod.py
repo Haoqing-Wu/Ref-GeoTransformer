@@ -150,12 +150,13 @@ class LMODataset(data.Dataset):
             
             if self.overfit is not None:
                 obj_id = self.overfit - 1
-            model_path = str(model_files[obj_id])
-
+            model_id = str(obj_id + 1).zfill(6)
+            #model_path = str(model_files[obj_id])
+            model_path = model_root + '/obj_{0}.ply'.format(model_id)
             src_pcd_, _ = sample_point_from_mesh(model_path, samples=10000)
             src_pcd = src_pcd_ / 1000
 
-            model_id = str(obj_id + 1).zfill(6)
+            
             frame_path = frame_root + '/' + model_id
             depth_path = frame_path + '/depth'
             mask_path = frame_path + '/mask_visib'
