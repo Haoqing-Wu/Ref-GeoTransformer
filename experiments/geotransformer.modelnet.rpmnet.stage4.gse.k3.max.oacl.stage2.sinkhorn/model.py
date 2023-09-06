@@ -204,21 +204,23 @@ class GeoTransformer(nn.Module):
 
         # 6. Select topk nearest node correspondences
         with torch.no_grad():
-            ref_node_corr_indices, src_node_corr_indices, node_corr_scores = self.coarse_matching(
+            ref_node_corr_indices, src_node_corr_indices, node_corr_scores, ref_no_match_indices, src_no_match_indices = self.coarse_matching(
                 ref_feats_sel_c_norm, src_feats_sel_c_norm, ref_node_masks_sel, src_node_masks_sel
             )
 
             output_dict['ref_node_corr_indices'] = ref_node_corr_indices
             output_dict['src_node_corr_indices'] = src_node_corr_indices
+            output_dict['ref_no_match_indices'] = ref_no_match_indices
+            output_dict['src_no_match_indices'] = src_no_match_indices
 
-            ref_node_corr_indices_m, src_node_corr_indices_m, _ = self.coarse_matching_m(
+            ref_node_corr_indices_m, src_node_corr_indices_m, _, _, _ = self.coarse_matching_m(
                 ref_feats_sel_c_norm, src_feats_sel_c_norm, ref_node_masks_sel, src_node_masks_sel
             )
 
             output_dict['ref_node_corr_indices_m'] = ref_node_corr_indices_m
             output_dict['src_node_corr_indices_m'] = src_node_corr_indices_m
 
-            ref_node_corr_indices_s, src_node_corr_indices_s, _ = self.coarse_matching_s(
+            ref_node_corr_indices_s, src_node_corr_indices_s, _, _ ,_ = self.coarse_matching_s(
                 ref_feats_sel_c_norm, src_feats_sel_c_norm, ref_node_masks_sel, src_node_masks_sel
             )
 

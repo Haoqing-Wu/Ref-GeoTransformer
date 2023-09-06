@@ -56,10 +56,8 @@ class transformer(Module):
         )
         self.feat_2d_mlp = Sequential(
             LayerNorm(768),
-            Linear(768, 128)
+            Linear(768, 256)
         )
-        self.pos_emb = PositionalEncoding2D(128)
-        self.single_mlp = Linear(256, 128)
 
     def feature_fusion_cat(self, feat0, feat1):
         feat_matrix = torch.cat([feat0.unsqueeze(2).repeat(1, 1, feat1.shape[1], 1),
@@ -101,33 +99,41 @@ class transformer(Module):
 
         feat0 = feats.get('ref_feats')
         feat1 = feats.get('src_feats')
+
         feat0_dist_emb = feats['ref_dist_emb']
         feat1_dist_emb = feats['src_dist_emb']
         dist_emb = self.feature_fusion_cat(feat0_dist_emb, feat1_dist_emb)
         dist_emb = torch.reshape(dist_emb, (dist_emb.shape[0], -1, dist_emb.shape[-1]))
+
+        feat0_voxel_emb = feats['ref_voxel_emb']
+        feat1_voxel_emb = feats['src_voxel_emb']
+        voxel_emb = self.feature_fusion_add(feat0_voxel_emb, feat1_voxel_emb)
+        voxel_emb = torch.reshape(voxel_emb, (voxel_emb.shape[0], -1, voxel_emb.shape[-1]))
+
         feat_2d = feats.get('feat_2d')
+        c_2d = self.feat_2d_mlp(feat_2d)
+
         mid_feats0 = feats.get('ref_mid_feats')
         mid_feats1 = feats.get('src_mid_feats')
         mid_ctxs = self.mid_features_fusion(mid_feats0, mid_feats1)
-        #ref_node_vec = feats.get('ref_node_vec')
-        #src_node_vec = feats.get('src_node_vec')
+
+        mask = feats.get('mask')
         ctx = mid_ctxs[-1]
         #ctx = self.feature_fusion_dist(feat0, feat1)
+        ctx = mask.unsqueeze(-1) * ctx
         ctx = torch.reshape(ctx, (ctx.shape[0], -1, ctx.shape[-1]))
-        #graph_emb = self.feature_fusion_cat(ref_node_vec, src_node_vec)
+
 
         x = x_t.squeeze(1).unsqueeze(-1)
         x = x.repeat(1, 1, 1, ctx.shape[-1])
-        pos = self.pos_emb(x)
-        #x = x + ctx
         x = torch.reshape(x, (x.shape[0], -1, x.shape[-1]))
+        x = x + dist_emb
         t = self.time_emb(t)
-        c_2d = self.feat_2d_mlp(feat_2d)
-        #c = t + c_2d
+        c = t + c_2d
 
         for block in self.DiT_blocks:
-            x = x + ctx + dist_emb
-            x = block(x, t)
+            x = x + ctx
+            x = block(x, c)
         x = self.output_mlp(x)
         #x = x[:, :-1, :]
         x = torch.reshape(x, (x_t.shape[0], x_t.shape[2], x_t.shape[3], -1))
