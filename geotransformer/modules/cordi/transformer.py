@@ -19,6 +19,9 @@ class transformer(Module):
             time_emb_dim=256
         ):
         super().__init__()
+        self.n_layers = n_layers
+        self.hidden_dim = query_dimensions*n_heads
+        self.half_dim = self.hidden_dim // 2
         self.encoder_layer = TransformerEncoderLayer(
             d_model=query_dimensions*n_heads,
             nhead=n_heads,
@@ -38,9 +41,14 @@ class transformer(Module):
             #ReLU(),
             #Linear(32, 2)
         )
-        self.feature_cross_attension = TransformerLayer(
-            d_model=256, num_heads=8, dropout=None, activation_fn='ReLU'
-        )
+        self.feature_cross_attention = ModuleList([
+            TransformerLayer(
+                d_model=query_dimensions*n_heads, 
+                num_heads=n_heads, 
+                dropout=None, 
+                activation_fn='ReLU'
+            ) for _ in range(n_layers)
+        ])
         self.feature_output_mlp = Sequential(
             LayerNorm(256),
             Linear(256, 512),
@@ -48,6 +56,16 @@ class transformer(Module):
         self.DiT_blocks = ModuleList([
             DiTBlock(query_dimensions*n_heads, n_heads, mlp_ratio=4.0) for _ in range(n_layers)
         ])
+        self.feat0_proj = Sequential(
+            Linear(self.half_dim, self.half_dim),
+            ReLU(),
+            Linear(self.half_dim, self.half_dim)
+        )
+        self.feat1_proj = Sequential(
+            Linear(self.half_dim, self.half_dim),
+            ReLU(),
+            Linear(self.half_dim, self.half_dim)
+        )
         self.time_emb = Sequential(
             SinusoidalPositionEmbeddings(time_emb_dim),
             Linear(time_emb_dim, n_heads*query_dimensions),
@@ -94,6 +112,21 @@ class transformer(Module):
             feat_matrix = self.feature_fusion_dist(feat0, feat1)
             feats_matrix.append(feat_matrix)
         return feats_matrix
+    
+    def get_sel_indices_from_mask(self, mask):
+        sel = torch.nonzero(mask.view(mask.shape[0], -1, 1), as_tuple=True)[1]
+        sel_feat0_indices = torch.div(sel, mask.shape[2], rounding_mode='floor')
+        sel_feat1_indices = sel % mask.shape[2]
+        return sel_feat0_indices, sel_feat1_indices
+    
+    def feature_pooling_from_indices(self, feat, indices, pooling='mean'):
+        feat = feat[:, indices, :]
+        if pooling == 'mean':
+            feat = torch.mean(feat, dim=1)
+        if pooling == 'max':
+            feat = torch.max(feat, dim=1)[0]
+        return feat
+        
 
     def forward(self, x_t, t, feats):
 
@@ -118,22 +151,30 @@ class transformer(Module):
         mid_ctxs = self.mid_features_fusion(mid_feats0, mid_feats1)
 
         mask = feats.get('mask')
-        ctx = mid_ctxs[-1]
-        #ctx = self.feature_fusion_dist(feat0, feat1)
-        ctx = mask.unsqueeze(-1) * ctx
+        sel_feat0_indices, sel_feat1_indices = self.get_sel_indices_from_mask(mask)
+        feat0_global = self.feature_pooling_from_indices(feat0, sel_feat0_indices, pooling='mean')
+        feat1_global = self.feature_pooling_from_indices(feat1, sel_feat1_indices, pooling='mean')
+        #feat0 = torch.cat([feat0, feat0_global.unsqueeze(1).repeat(1, feat0.shape[1], 1)], dim=-1)
+        #feat1 = torch.cat([feat1, feat1_global.unsqueeze(1).repeat(1, feat1.shape[1], 1)], dim=-1)
+
+        #ctx = mid_ctxs[0]
+        ctx = self.feature_fusion_cat(feat0, feat1)
+        #ctx = mask.unsqueeze(-1) * ctx
         ctx = torch.reshape(ctx, (ctx.shape[0], -1, ctx.shape[-1]))
 
+        
 
         x = x_t.squeeze(1).unsqueeze(-1)
-        x = x.repeat(1, 1, 1, ctx.shape[-1])
+        x = x.repeat(1, 1, 1, self.hidden_dim)
         x = torch.reshape(x, (x.shape[0], -1, x.shape[-1]))
-        x = x + dist_emb
+        #x = x + dist_emb
         t = self.time_emb(t)
-        c = t + c_2d
+        #c = t + c_2d
 
-        for block in self.DiT_blocks:
+        for i in range (self.n_layers):
             x = x + ctx
-            x = block(x, c)
+            #x, _ = self.feature_cross_attention[i](x, ctx)
+            x = self.DiT_blocks[i](x, t)
         x = self.output_mlp(x)
         #x = x[:, :-1, :]
         x = torch.reshape(x, (x_t.shape[0], x_t.shape[2], x_t.shape[3], -1))

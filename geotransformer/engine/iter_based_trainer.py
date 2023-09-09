@@ -1,6 +1,8 @@
 import os
 import os.path as osp
 from typing import Tuple, Dict
+import wandb
+import matplotlib.pyplot as plt
 
 import ipdb
 import torch
@@ -275,7 +277,18 @@ class IterBasedDDPMTrainer(BaseTrainer):
         self.snapshot_steps = snapshot_steps
         self.snapshot_encoder_dir = cfg.snapshot_encoder_dir
         self.snapshot_ddpm_dir = cfg.snapshot_ddpm_dir
+        self.result_dir = cfg.result_dir
         self.batch_size = cfg.ddpm.batch_size
+        self.val_iters = cfg.eval.val_iters
+        self.test_iters = cfg.eval.test_iters
+        self.wandb_enable = cfg.wandb.enable
+
+        if self.wandb_enable:
+            wandb.init(
+                project=cfg.wandb.project,
+                name=cfg.wandb.name,
+                config=cfg
+            )
 
     def before_train(self) -> None:
         pass
@@ -326,7 +339,7 @@ class IterBasedDDPMTrainer(BaseTrainer):
         summary_board = SummaryBoard(adaptive=True)
         timer = Timer()
         #total_iterations = len(self.val_loader)
-        total_iterations = 10
+        total_iterations = self.val_iters
         pbar = tqdm.tqdm(enumerate(self.val_loader), total=total_iterations)
         for iteration, data_dict in pbar:
             self.inner_iteration = iteration + 1
@@ -346,9 +359,20 @@ class IterBasedDDPMTrainer(BaseTrainer):
             )
             pbar.set_description(message)
             torch.cuda.empty_cache()
-            if iteration == 10:
+            if iteration == self.val_iters - 1:
                 # save the point cloud and corresponding prediction
-                save_corr_pcd_ddpm(output_dict, data_dict)
+                # save_corr_pcd_ddpm(output_dict, data_dict)
+
+                vis_pred_corr_mat = output_dict['pred_corr_mat'].squeeze(0).cpu().numpy()
+                vis_gt_corr_score_mat = output_dict['gt_corr_score_matrix'].cpu().numpy()
+                plt.imshow(vis_pred_corr_mat, cmap='coolwarm')
+                plt.savefig(self.result_dir + '/val_pred_corr_mat.png', bbox_inches='tight')
+                plt.close()
+                log_pred_corr_mat = wandb.Image(self.result_dir + '/val_pred_corr_mat.png', caption="val_pred_corr_mat")
+                plt.imshow(vis_gt_corr_score_mat, cmap='coolwarm')
+                plt.savefig(self.result_dir + '/val_gt_corr_score_mat.png', bbox_inches='tight')
+                plt.close()
+                log_gt_corr_score_mat = wandb.Image(self.result_dir + '/val_gt_corr_score_mat.png', caption="val_gt_corr_score_mat")
                 break
 
         self.after_val()
@@ -356,6 +380,19 @@ class IterBasedDDPMTrainer(BaseTrainer):
         message = '[Val] ' + get_log_string(summary_dict, iteration=self.iteration, timer=timer)
         self.logger.critical(message)
         self.write_event('val', summary_dict, self.iteration // self.snapshot_steps)
+        if self.wandb_enable:
+            wandb.log({
+                "Val": {
+                    "PIR": summary_dict['PIR'],
+                    "PIR_M": summary_dict['PIR_M'],
+                    "PIR_S": summary_dict['PIR_S'],
+                    "GIR": summary_dict['GIR'],
+                    "GIR_M": summary_dict['GIR_M'],
+                    "GIR_S": summary_dict['GIR_S'],
+                    "log_pred_corr_mat": log_pred_corr_mat,
+                    "log_gt_corr_score_mat": log_gt_corr_score_mat
+                }
+            })
         self.set_train_mode()
 
     def inference_test(self):
@@ -364,7 +401,7 @@ class IterBasedDDPMTrainer(BaseTrainer):
         summary_board = SummaryBoard(adaptive=True)
         timer = Timer()
         #total_iterations = len(self.test_loader)
-        total_iterations = 30
+        total_iterations = self.test_iters
         pbar = tqdm.tqdm(enumerate(self.test_loader), total=total_iterations)
         for iteration, data_dict in pbar:
             self.inner_iteration = iteration + 1
@@ -384,9 +421,20 @@ class IterBasedDDPMTrainer(BaseTrainer):
             )
             pbar.set_description(message)
             torch.cuda.empty_cache()
-            if iteration == 30:
+            if iteration == self.test_iters - 1:
                 # save the point cloud and corresponding prediction
                 save_corr_pcd_ddpm(output_dict, data_dict)
+
+                vis_pred_corr_mat = output_dict['pred_corr_mat'].squeeze(0).cpu().numpy()
+                vis_gt_corr_score_mat = output_dict['gt_corr_score_matrix'].cpu().numpy()
+                plt.imshow(vis_pred_corr_mat, cmap='coolwarm')
+                plt.savefig(self.result_dir + '/test_pred_corr_mat.png', bbox_inches='tight')
+                plt.close()
+                log_pred_corr_mat = wandb.Image(self.result_dir + '/test_pred_corr_mat.png', caption="test_pred_corr_mat")
+                plt.imshow(vis_gt_corr_score_mat, cmap='coolwarm')
+                plt.savefig(self.result_dir + '/test_gt_corr_score_mat.png', bbox_inches='tight')
+                plt.close()
+                log_gt_corr_score_mat = wandb.Image(self.result_dir + '/test_gt_corr_score_mat.png', caption="test_gt_corr_score_mat")
                 break
 
         self.after_val()
@@ -394,6 +442,19 @@ class IterBasedDDPMTrainer(BaseTrainer):
         message = '[Test] ' + get_log_string(summary_dict, iteration=self.iteration, timer=timer)
         self.logger.critical(message)
         self.write_event('test', summary_dict, self.iteration // self.snapshot_steps)
+        if self.wandb_enable:
+            wandb.log({
+                "Test": {
+                    "PIR": summary_dict['PIR'],
+                    "PIR_M": summary_dict['PIR_M'],
+                    "PIR_S": summary_dict['PIR_S'],
+                    "GIR": summary_dict['GIR'],
+                    "GIR_M": summary_dict['GIR_M'],
+                    "GIR_S": summary_dict['GIR_S'],
+                    "log_pred_corr_mat": log_pred_corr_mat,
+                    "log_gt_corr_score_mat": log_gt_corr_score_mat
+                }
+            })
         self.set_train_mode()
 
     def run(self):
@@ -452,6 +513,14 @@ class IterBasedDDPMTrainer(BaseTrainer):
                 )
                 self.logger.info(message)
                 self.write_event('train', summary_dict, self.iteration)
+                if self.wandb_enable:
+                    wandb.log({
+                        "Train": {
+                            "loss": summary_dict['loss'],
+                            "lr": self.get_lr()
+                        }    
+                    })
+
             # snapshot & validation
             if self.iteration % self.snapshot_steps == 0:
                 self.epoch = train_loader.last_epoch

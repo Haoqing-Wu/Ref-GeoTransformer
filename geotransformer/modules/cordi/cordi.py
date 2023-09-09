@@ -101,7 +101,7 @@ class Cordi(Module):
             
             init_corr_matrix = torch.zeros((ref_points.shape[0], src_points.shape[0])).cuda()
             init_corr_matrix[init_ref_corr_indices, init_src_corr_indices] = 1
-            init_corr_matrix[ref_no_match_indices, src_no_match_indices] = 1
+            #init_corr_matrix[ref_no_match_indices, src_no_match_indices] = 1
 
             # Get gt corr matrix from gt corr pairs
             gt_corr_matrix = torch.zeros((ref_points.shape[0], src_points.shape[0])).cuda()
@@ -159,7 +159,7 @@ class Cordi(Module):
 
         return ref_geo_emb, src_geo_emb
     
-    def voxel_embedding(self, pcd_in, voxel_size=0.01):
+    def voxel_embedding(self, pcd_in, voxel_size=0.1):
         for batch in range(pcd_in.shape[0]):
             pcd = pcd_in[batch]
             pcd = pcd.cpu().numpy()
@@ -266,6 +266,7 @@ class Cordi(Module):
             'num_corr_0_95': num_corr_0_95,
             'num_corr_1': num_corr_1,
             'gt_corr_matrix': d_dict.get('gt_corr_matrix').squeeze(0),
+            'gt_corr_score_matrix': d_dict.get('gt_corr_score_matrix').squeeze(0),
             'ref_points': d_dict.get('ref_points').squeeze(0),
             'src_points': d_dict.get('src_points').squeeze(0),
             }

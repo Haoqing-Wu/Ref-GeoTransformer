@@ -30,6 +30,13 @@ ensure_dir(_C.log_dir)
 ensure_dir(_C.event_dir)
 ensure_dir(_C.result_dir)
 
+# wandb
+_C.wandb = edict()
+_C.wandb.enable = True
+_C.wandb.project = "cordi_corr_base"
+_C.wandb.name = "lm6_cat_sa_ctx_full"
+
+
 # data
 _C.data = edict()
 _C.data.dataset_root = osp.join(_C.root_dir, "data", "ModelNet")
@@ -64,6 +71,8 @@ _C.eval.acceptance_radius = 0.01
 _C.eval.inlier_ratio_threshold = 0.05
 _C.eval.rre_threshold = 1.0
 _C.eval.rte_threshold = 0.1
+_C.eval.val_iters = 50
+_C.eval.test_iters = 50
 
 # ransac
 _C.ransac = edict()
@@ -78,7 +87,7 @@ _C.optim.weight_decay = 1e-6
 _C.optim.warmup_steps = 1000
 _C.optim.eta_init = 0.1
 _C.optim.eta_min = 0.1
-_C.optim.max_iteration = 50000
+_C.optim.max_iteration = 30000
 _C.optim.snapshot_steps = 2000
 _C.optim.grad_acc_steps = 1
 
@@ -144,7 +153,7 @@ _C.dino.checkpoint_key = "teacher"
 
 # model - DDPM
 _C.ddpm = edict()
-_C.ddpm.batch_size = 4
+_C.ddpm.batch_size = 1
 _C.ddpm.num_steps = 400
 _C.ddpm.beta_1 = 1e-4
 _C.ddpm.beta_T = 0.02

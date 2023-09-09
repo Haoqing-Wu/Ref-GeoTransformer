@@ -211,8 +211,8 @@ class LMODataset(data.Dataset):
                 
 
                 src_pcd, tgt_pcd = normalize_points(src_pcd, tgt_pcd, rot, trans)
-                src_pcd = sort_pcd_from_min_xyz(src_pcd)
-                tgt_pcd = sort_pcd_from_min_xyz(tgt_pcd)
+                #src_pcd = sort_pcd_from_min_xyz(src_pcd)
+                #tgt_pcd = sort_pcd_from_min_xyz(tgt_pcd)
 
                 # image processing
                 rgb_img = np.array(Image.open(str(rgb_files[frame_id])))

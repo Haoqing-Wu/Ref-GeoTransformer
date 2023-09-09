@@ -42,13 +42,15 @@ class SuperPointMatching(nn.Module):
         num_correspondences = min(self.num_correspondences, matching_scores.numel())
         corr_scores, corr_indices = matching_scores.view(-1).topk(k=num_correspondences, largest=True)
 
-        ref_sel_indices = corr_indices // matching_scores.shape[1]
+        #ref_sel_indices = corr_indices // matching_scores.shape[1]
+        ref_sel_indices = torch.div(corr_indices, matching_scores.shape[1], rounding_mode='floor')
         src_sel_indices = corr_indices % matching_scores.shape[1]
+        
         # recover original indices
         ref_corr_indices = ref_indices[ref_sel_indices]
         src_corr_indices = src_indices[src_sel_indices]
 
-        # find corresponding indices which matching score less than 0.1
+        # find corresponding indices which matching score less than 0.0005
         no_match_indices = torch.nonzero(matching_scores < 0.0005, as_tuple=True)
         ref_no_match_indices = no_match_indices[0]
         src_no_match_indices = no_match_indices[1]
