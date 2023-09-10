@@ -58,4 +58,4 @@ class SuperPointMatching(nn.Module):
         ref_no_match_indices = ref_indices[ref_no_match_indices]
         src_no_match_indices = src_indices[src_no_match_indices]
 
-        return ref_corr_indices, src_corr_indices, corr_scores, ref_no_match_indices, src_no_match_indices
+        return ref_corr_indices, src_corr_indices, corr_scores, ref_no_match_indices, src_no_match_indices, matching_scores

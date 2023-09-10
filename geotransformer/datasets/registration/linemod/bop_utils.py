@@ -5,6 +5,7 @@ import open3d as o3d
 import numpy as np
 from scipy.spatial import cKDTree
 from typing import Optional
+
 #from focal_loss.focal_loss import FocalLoss
 
 
@@ -207,7 +208,7 @@ def get_corr(tgt_pcd, src_pcd, rot, trans, radius):
     coverage = corr.shape[0] / tgt_pcd.shape[0]
     return corr, coverage
 
-def get_corr_score_matrix(tgt_pcd, src_pcd, transform, sigma=0.3):
+def get_corr_score_matrix(tgt_pcd, src_pcd, transform, sigma=0.1):
     src_pcd_t = apply_transform(src_pcd, transform)
     # Calculate pointwise distances using broadcasting
     distances = torch.cdist(tgt_pcd, src_pcd_t)
@@ -499,7 +500,7 @@ def save_corr_pcd(output_dict):
     line_outlier.colors = o3d.utility.Vector3dVector([[1, 0, 0] for i in range(len(lines))])
     o3d.io.write_line_set("./output/geotransformer.modelnet.rpmnet.stage4.gse.k3.max.oacl.stage2.sinkhorn/result/line_outlier.ply", line_outlier)
 
-def save_corr_pcd_ddpm(output_dict, data_dict):
+def save_corr_pcd_ddpm(output_dict, data_dict, log_dir):
     tgt_pcd = output_dict['ref_points'].cpu().numpy()
     src_pcd = output_dict['src_points'].cpu().numpy()
     pred_corr = output_dict['pred_corr']
@@ -520,11 +521,11 @@ def save_corr_pcd_ddpm(output_dict, data_dict):
     # save the target point cloud
     pcd_frame = o3d.geometry.PointCloud()
     pcd_frame.points = o3d.utility.Vector3dVector(tgt_pcd)
-    o3d.io.write_point_cloud("./output/geotransformer.modelnet.rpmnet.stage4.gse.k3.max.oacl.stage2.sinkhorn/result/pcd_frame.ply", pcd_frame)
+    o3d.io.write_point_cloud(log_dir + "pcd_frame.ply", pcd_frame)
     # save the source point cloud
     pcd_model = o3d.geometry.PointCloud()
     pcd_model.points = o3d.utility.Vector3dVector(src_pcd_t)
-    o3d.io.write_point_cloud("./output/geotransformer.modelnet.rpmnet.stage4.gse.k3.max.oacl.stage2.sinkhorn/result/pcd_model.ply", pcd_model)
+    o3d.io.write_point_cloud(log_dir + "pcd_model.ply", pcd_model)
     # save the ground truth correspondences
     points = []
     lines = []
@@ -540,7 +541,7 @@ def save_corr_pcd_ddpm(output_dict, data_dict):
     line_gt.points = o3d.utility.Vector3dVector(points)
     line_gt.lines = o3d.utility.Vector2iVector(lines)
     line_gt.colors = o3d.utility.Vector3dVector([[0, 1, 0] for i in range(len(lines))])
-    o3d.io.write_line_set("./output/geotransformer.modelnet.rpmnet.stage4.gse.k3.max.oacl.stage2.sinkhorn/result/line_gt.ply", line_gt)
+    o3d.io.write_line_set(log_dir + "line_gt.ply", line_gt)
     # save the predicted correspondences
     points = []
     lines = []
@@ -554,7 +555,7 @@ def save_corr_pcd_ddpm(output_dict, data_dict):
     line_pred.points = o3d.utility.Vector3dVector(points)
     line_pred.lines = o3d.utility.Vector2iVector(lines)
     line_pred.colors = o3d.utility.Vector3dVector([[0, 0.8, 0.2] for i in range(len(lines))])
-    o3d.io.write_line_set("./output/geotransformer.modelnet.rpmnet.stage4.gse.k3.max.oacl.stage2.sinkhorn/result/line_pred.ply", line_pred)
+    o3d.io.write_line_set(log_dir + "line_pred.ply", line_pred)
     # find the inlier correspondences
     pred_corr_pairs = pred_corr.tolist()
 
@@ -578,7 +579,7 @@ def save_corr_pcd_ddpm(output_dict, data_dict):
     line_inlier.points = o3d.utility.Vector3dVector(points)
     line_inlier.lines = o3d.utility.Vector2iVector(lines)
     line_inlier.colors = o3d.utility.Vector3dVector([[0, 0, 1] for i in range(len(lines))])
-    o3d.io.write_line_set("./output/geotransformer.modelnet.rpmnet.stage4.gse.k3.max.oacl.stage2.sinkhorn/result/line_inlier.ply", line_inlier)
+    o3d.io.write_line_set(log_dir + "line_inlier.ply", line_inlier)
     # save the outlier correspondences
     points = []
     lines = []
@@ -592,7 +593,7 @@ def save_corr_pcd_ddpm(output_dict, data_dict):
     line_outlier.points = o3d.utility.Vector3dVector(points)
     line_outlier.lines = o3d.utility.Vector2iVector(lines)
     line_outlier.colors = o3d.utility.Vector3dVector([[1, 0, 0] for i in range(len(lines))])
-    o3d.io.write_line_set("./output/geotransformer.modelnet.rpmnet.stage4.gse.k3.max.oacl.stage2.sinkhorn/result/line_outlier.ply", line_outlier)
+    o3d.io.write_line_set(log_dir + "line_outlier.ply", line_outlier)
 
     
 def test_normalize_pcd(tgt_pcd, src_pcd, rot, trans):

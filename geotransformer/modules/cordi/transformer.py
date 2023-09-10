@@ -33,14 +33,7 @@ class transformer(Module):
             encoder_layer=self.encoder_layer,
             num_layers=n_layers
         )
-        self.output_mlp = Sequential(
-            #LayerNorm(query_dimensions*n_heads),
-            Linear(query_dimensions*n_heads, 2)
-            #ReLU(),
-            #Linear(64, 32),
-            #ReLU(),
-            #Linear(32, 2)
-        )
+        self.output_mlp = Finallayer(query_dimensions*n_heads, 2)
         self.feature_cross_attention = ModuleList([
             TransformerLayer(
                 d_model=query_dimensions*n_heads, 
@@ -162,20 +155,18 @@ class transformer(Module):
         #ctx = mask.unsqueeze(-1) * ctx
         ctx = torch.reshape(ctx, (ctx.shape[0], -1, ctx.shape[-1]))
 
-        
-
         x = x_t.squeeze(1).unsqueeze(-1)
         x = x.repeat(1, 1, 1, self.hidden_dim)
         x = torch.reshape(x, (x.shape[0], -1, x.shape[-1]))
-        #x = x + dist_emb
+        #x = x + dist_emb + ctx
         t = self.time_emb(t)
-        #c = t + c_2d
-
+        c = t + c_2d
+        x = x + ctx
         for i in range (self.n_layers):
-            x = x + ctx
+            
             #x, _ = self.feature_cross_attention[i](x, ctx)
-            x = self.DiT_blocks[i](x, t)
-        x = self.output_mlp(x)
+            x = self.DiT_blocks[i](x, c)
+        x = self.output_mlp(x, c)
         #x = x[:, :-1, :]
         x = torch.reshape(x, (x_t.shape[0], x_t.shape[2], x_t.shape[3], -1))
         x = rearrange(x, 'b h w c -> b c h w')
@@ -212,6 +203,25 @@ class DiTBlock(Module):
         x = x + gate_msa.unsqueeze(1) * self.attn(modulate(x, shift_msa, scale_msa))
         x = x + gate_mlp.unsqueeze(1) * self.mlp(modulate(self.norm2(x), shift_mlp, scale_mlp))
         return x
+    
+class Finallayer(Module):
+    """
+    The final layer of DiT.
+    """
+    def __init__(self, hidden_size, out_channels):
+        super().__init__()
+        self.norm_final = LayerNorm(hidden_size, elementwise_affine=False, eps=1e-6)
+        self.linear = Linear(hidden_size, out_channels, bias=True)
+        self.adaLN_modulation = Sequential(
+            SiLU(),
+            Linear(hidden_size, 2 * hidden_size, bias=True)
+        )
+
+    def forward(self, x, c):
+        shift, scale = self.adaLN_modulation(c).chunk(2, dim=1)
+        x = modulate(self.norm_final(x), shift, scale)
+        x = self.linear(x)
+        return x    
 
 class SinusoidalPositionEmbeddings(Module):
     def __init__(self, dim):

@@ -361,10 +361,13 @@ class IterBasedDDPMTrainer(BaseTrainer):
             torch.cuda.empty_cache()
             if iteration == self.val_iters - 1:
                 # save the point cloud and corresponding prediction
-                # save_corr_pcd_ddpm(output_dict, data_dict)
+                log_dir = self.result_dir + "/val_"
+                save_corr_pcd_ddpm(output_dict, data_dict, log_dir)
 
                 vis_pred_corr_mat = output_dict['pred_corr_mat'].squeeze(0).cpu().numpy()
                 vis_gt_corr_score_mat = output_dict['gt_corr_score_matrix'].cpu().numpy()
+                vis_geo_pred_corr_score_mat = output_dict['init_corr_score_matrix'].cpu().numpy()
+                vis_gt_corr_mat = output_dict['gt_corr_matrix'].cpu().numpy()
                 plt.imshow(vis_pred_corr_mat, cmap='coolwarm')
                 plt.savefig(self.result_dir + '/val_pred_corr_mat.png', bbox_inches='tight')
                 plt.close()
@@ -373,6 +376,14 @@ class IterBasedDDPMTrainer(BaseTrainer):
                 plt.savefig(self.result_dir + '/val_gt_corr_score_mat.png', bbox_inches='tight')
                 plt.close()
                 log_gt_corr_score_mat = wandb.Image(self.result_dir + '/val_gt_corr_score_mat.png', caption="val_gt_corr_score_mat")
+                plt.imshow(vis_geo_pred_corr_score_mat, cmap='coolwarm')
+                plt.savefig(self.result_dir + '/val_geo_pred_corr_score_mat.png', bbox_inches='tight')
+                plt.close()
+                log_geo_pred_corr_score_mat = wandb.Image(self.result_dir + '/val_geo_pred_corr_score_mat.png', caption="val_geo_pred_corr_score_mat")
+                plt.imshow(vis_gt_corr_mat, cmap='coolwarm')
+                plt.savefig(self.result_dir + '/val_gt_corr_mat.png', bbox_inches='tight')
+                plt.close()
+                log_gt_corr_mat = wandb.Image(self.result_dir + '/val_gt_corr_mat.png', caption="val_gt_corr_mat")
                 break
 
         self.after_val()
@@ -390,7 +401,9 @@ class IterBasedDDPMTrainer(BaseTrainer):
                     "GIR_M": summary_dict['GIR_M'],
                     "GIR_S": summary_dict['GIR_S'],
                     "log_pred_corr_mat": log_pred_corr_mat,
-                    "log_gt_corr_score_mat": log_gt_corr_score_mat
+                    "log_gt_corr_score_mat": log_gt_corr_score_mat,
+                    "log_geo_pred_corr_score_mat": log_geo_pred_corr_score_mat,
+                    "log_gt_corr_mat": log_gt_corr_mat
                 }
             })
         self.set_train_mode()
@@ -423,10 +436,13 @@ class IterBasedDDPMTrainer(BaseTrainer):
             torch.cuda.empty_cache()
             if iteration == self.test_iters - 1:
                 # save the point cloud and corresponding prediction
-                save_corr_pcd_ddpm(output_dict, data_dict)
+                log_dir = self.result_dir + "/test_"
+                save_corr_pcd_ddpm(output_dict, data_dict, log_dir)
 
                 vis_pred_corr_mat = output_dict['pred_corr_mat'].squeeze(0).cpu().numpy()
                 vis_gt_corr_score_mat = output_dict['gt_corr_score_matrix'].cpu().numpy()
+                vis_geo_pred_corr_score_mat = output_dict['init_corr_score_matrix'].cpu().numpy()
+                vis_gt_corr_mat = output_dict['gt_corr_matrix'].cpu().numpy()
                 plt.imshow(vis_pred_corr_mat, cmap='coolwarm')
                 plt.savefig(self.result_dir + '/test_pred_corr_mat.png', bbox_inches='tight')
                 plt.close()
@@ -435,6 +451,14 @@ class IterBasedDDPMTrainer(BaseTrainer):
                 plt.savefig(self.result_dir + '/test_gt_corr_score_mat.png', bbox_inches='tight')
                 plt.close()
                 log_gt_corr_score_mat = wandb.Image(self.result_dir + '/test_gt_corr_score_mat.png', caption="test_gt_corr_score_mat")
+                plt.imshow(vis_geo_pred_corr_score_mat, cmap='coolwarm')
+                plt.savefig(self.result_dir + '/test_geo_pred_corr_score_mat.png', bbox_inches='tight')
+                plt.close()
+                log_geo_pred_corr_score_mat = wandb.Image(self.result_dir + '/test_geo_pred_corr_score_mat.png', caption="test_geo_pred_corr_score_mat")
+                plt.imshow(vis_gt_corr_mat, cmap='coolwarm')
+                plt.savefig(self.result_dir + '/test_gt_corr_mat.png', bbox_inches='tight')
+                plt.close()
+                log_gt_corr_mat = wandb.Image(self.result_dir + '/test_gt_corr_mat.png', caption="test_gt_corr_mat")
                 break
 
         self.after_val()
@@ -452,7 +476,9 @@ class IterBasedDDPMTrainer(BaseTrainer):
                     "GIR_M": summary_dict['GIR_M'],
                     "GIR_S": summary_dict['GIR_S'],
                     "log_pred_corr_mat": log_pred_corr_mat,
-                    "log_gt_corr_score_mat": log_gt_corr_score_mat
+                    "log_gt_corr_score_mat": log_gt_corr_score_mat,
+                    "log_geo_pred_corr_score_mat": log_geo_pred_corr_score_mat,
+                    "log_gt_corr_mat": log_gt_corr_mat
                 }
             })
         self.set_train_mode()

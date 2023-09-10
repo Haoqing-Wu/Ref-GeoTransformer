@@ -81,6 +81,7 @@ class Cordi(Module):
         b_src_mid_feats_sampled = []
         b_feat_matrix = []
         b_init_corr_matrix = []
+        b_init_corr_score_matrix = []
         b_gt_corr_score_matrix_sampled = []
         b_gt_corr_matrix_sampled =[]
         b_feat_2d = []
@@ -98,6 +99,7 @@ class Cordi(Module):
             ref_no_match_indices = latent_dict.get('ref_no_match_indices').unsqueeze(-1)
             src_no_match_indices = latent_dict.get('src_no_match_indices').unsqueeze(-1)
             gt_corr_score_matrix = latent_dict.get('gt_node_corr_score')
+            init_corr_score_matrix = latent_dict.get('node_corr_score')
             
             init_corr_matrix = torch.zeros((ref_points.shape[0], src_points.shape[0])).cuda()
             init_corr_matrix[init_ref_corr_indices, init_src_corr_indices] = 1
@@ -132,6 +134,7 @@ class Cordi(Module):
             b_src_mid_feats_sampled.append(src_mid_feats_sampled.unsqueeze(0))
             b_feat_matrix.append(feat_matrix.unsqueeze(0))
             b_init_corr_matrix.append(init_corr_matrix.unsqueeze(0))
+            b_init_corr_score_matrix.append(init_corr_score_matrix.unsqueeze(0))
             b_gt_corr_score_matrix_sampled.append(gt_corr_score_matrix_sampled.unsqueeze(0))
             b_gt_corr_matrix_sampled.append(gt_corr_matrix.unsqueeze(0))
             b_feat_2d.append(latent_dict.get('feat_2d').unsqueeze(0))
@@ -144,6 +147,7 @@ class Cordi(Module):
             'ref_mid_feats': torch.cat(b_ref_mid_feats_sampled, dim=0),
             'src_mid_feats': torch.cat(b_src_mid_feats_sampled, dim=0),
             'init_corr_matrix': torch.cat(b_init_corr_matrix, dim=0),   
+            'init_corr_score_matrix': torch.cat(b_init_corr_score_matrix, dim=0),
             'gt_corr_score_matrix': torch.cat(b_gt_corr_score_matrix_sampled, dim=0),
             'gt_corr_matrix': torch.cat(b_gt_corr_matrix_sampled, dim=0),
             'feat_2d': torch.cat(b_feat_2d, dim=0)
@@ -267,6 +271,8 @@ class Cordi(Module):
             'num_corr_1': num_corr_1,
             'gt_corr_matrix': d_dict.get('gt_corr_matrix').squeeze(0),
             'gt_corr_score_matrix': d_dict.get('gt_corr_score_matrix').squeeze(0),
+            'init_corr_matrix': d_dict.get('init_corr_matrix').squeeze(0),
+            'init_corr_score_matrix': d_dict.get('init_corr_score_matrix').squeeze(0),
             'ref_points': d_dict.get('ref_points').squeeze(0),
             'src_points': d_dict.get('src_points').squeeze(0),
             }
