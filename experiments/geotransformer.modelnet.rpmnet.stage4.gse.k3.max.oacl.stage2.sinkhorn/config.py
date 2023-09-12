@@ -32,7 +32,7 @@ ensure_dir(_C.result_dir)
 
 # wandb
 _C.wandb = edict()
-_C.wandb.enable = True
+_C.wandb.enable = False
 _C.wandb.project = "cordi_corr_base"
 _C.wandb.name = "lm6_cat_sa_ctx_wll_once_fl_sigma_0.1"
 
@@ -166,7 +166,7 @@ _C.ddpm.sample_topk = 32
 _C.ddpm.sample_topk_1_2 = 16
 _C.ddpm.sample_topk_1_4 = 8
 _C.ddpm.time_emb_dim = 256
-_C.ddpm.geo_embedding_dim = 128
+_C.ddpm.geo_embedding_dim = 256
 _C.ddpm.use_ddpm_reference = False
 
 # model - DDPM - Transformer

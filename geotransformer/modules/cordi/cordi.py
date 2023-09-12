@@ -70,7 +70,7 @@ class Cordi(Module):
             nn.ReLU(),
             nn.Linear(2048, 256)
         )
-        self.voxel_emb = SinusoidalPositionEmbeddings3D(128)
+        self.voxel_emb = SinusoidalPositionEmbeddings3D(256)
 
     def downsample(self, batch_latent_data, slim=False):
         b_ref_points_sampled = []
@@ -158,8 +158,8 @@ class Cordi(Module):
     def geometric_embedding(self, ref_pcd, src_pcd):
         ref_geo_emb = self.geo_embedding(ref_pcd)
         src_geo_emb = self.geo_embedding(src_pcd)
-        ref_geo_emb = self.geo_proj_ref(ref_geo_emb.reshape(ref_geo_emb.shape[0], ref_geo_emb.shape[1], -1))
-        src_geo_emb = self.geo_proj_src(src_geo_emb.reshape(src_geo_emb.shape[0], src_geo_emb.shape[1], -1))
+        #ref_geo_emb = self.geo_proj_ref(ref_geo_emb.reshape(ref_geo_emb.shape[0], ref_geo_emb.shape[1], -1))
+        #src_geo_emb = self.geo_proj_src(src_geo_emb.reshape(src_geo_emb.shape[0], src_geo_emb.shape[1], -1))
 
         return ref_geo_emb, src_geo_emb
     
@@ -223,7 +223,7 @@ class Cordi(Module):
         feat_2d = d_dict.get('feat_2d').cuda()
         ref_points = d_dict.get('ref_points')
         src_points = d_dict.get('src_points')
-        ref_dist_emb, src_dist_emb = self.geometric_embedding(ref_points, src_points)
+        ref_geo_emb, src_geo_emb = self.geometric_embedding(ref_points, src_points)
         ref_voxel_emb = self.voxel_embedding(ref_points)
         src_voxel_emb = self.voxel_embedding(src_points)
         ref_knn_indices = self.knn_indices(ref_points, 3)
@@ -239,8 +239,8 @@ class Cordi(Module):
         feats['ref_mid_feats'] = ref_mid_feats
         feats['src_mid_feats'] = src_mid_feats
         feats['feat_2d'] = feat_2d
-        feats['ref_dist_emb'] = ref_dist_emb
-        feats['src_dist_emb'] = src_dist_emb
+        feats['ref_geo_emb'] = ref_geo_emb
+        feats['src_geo_emb'] = src_geo_emb
         feats['ref_voxel_emb'] = ref_voxel_emb
         feats['src_voxel_emb'] = src_voxel_emb
         feats['ref_knn_emb'] = ref_knn_emb
@@ -268,7 +268,7 @@ class Cordi(Module):
         src_mid_feats = d_dict.get('src_mid_feats').cuda()
         ref_points = d_dict.get('ref_points')
         src_points = d_dict.get('src_points')
-        ref_dist_emb, src_dist_emb = self.geometric_embedding(ref_points, src_points)
+        ref_geo_emb, src_geo_emb = self.geometric_embedding(ref_points, src_points)
         ref_voxel_emb = self.voxel_embedding(ref_points)
         src_voxel_emb = self.voxel_embedding(src_points)
         ref_knn_indices = self.knn_indices(ref_points, 3)
@@ -286,8 +286,8 @@ class Cordi(Module):
         feats['ref_mid_feats'] = ref_mid_feats
         feats['src_mid_feats'] = src_mid_feats
         feats['feat_2d'] = feat_2d
-        feats['ref_dist_emb'] = ref_dist_emb
-        feats['src_dist_emb'] = src_dist_emb
+        feats['ref_geo_emb'] = ref_geo_emb
+        feats['src_geo_emb'] = src_geo_emb
         feats['ref_voxel_emb'] = ref_voxel_emb
         feats['src_voxel_emb'] = src_voxel_emb
         feats['ref_knn_emb'] = ref_knn_emb

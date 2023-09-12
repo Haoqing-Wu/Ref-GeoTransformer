@@ -6,6 +6,8 @@ from geotransformer.modules.transformer.vanilla_transformer import TransformerLa
 from timm.models.vision_transformer import Attention, Mlp
 from einops import rearrange
 from positional_encodings.torch_encodings import PositionalEncoding2D
+from geotransformer.modules.transformer.rpe_transformer import RPEMultiHeadAttention
+from geotransformer.modules.layers import build_dropout_layer, build_act_layer
 
 class transformer(Module):
     # Build a transformer encoder
@@ -69,6 +71,18 @@ class transformer(Module):
             LayerNorm(768),
             Linear(768, 256)
         )
+        # for new implementation
+        self.n_ref = 39
+        self.n_src = 80
+        self.d_model = query_dimensions*n_heads
+        self.input_proj_ref = Linear(self.n_src, self.d_model)
+        self.input_proj_src = Linear(self.n_ref, self.d_model)
+        self.transformer = RPEDiT(
+            hidden_dim=self.d_model,
+            num_heads=n_heads,
+            blocks=['self', 'cross', 'self', 'cross', 'self', 'cross'],
+        )
+        
 
     def feature_fusion_cat(self, feat0, feat1):
         feat_matrix = torch.cat([feat0.unsqueeze(2).repeat(1, 1, feat1.shape[1], 1),
@@ -121,15 +135,15 @@ class transformer(Module):
         return feat
         
 
-    def forward(self, x_t, t, feats):
+    def _forward(self, x_t, t, feats):
 
         feat0 = feats.get('ref_feats')
         feat1 = feats.get('src_feats')
         #feat0 = feats.get('ref_knn_feats')
         #feat1 = feats.get('src_knn_feats')
 
-        feat0_dist_emb = feats['ref_dist_emb']
-        feat1_dist_emb = feats['src_dist_emb']
+        feat0_dist_emb = feats['ref_geo_emb']
+        feat1_dist_emb = feats['src_geo_emb']
         dist_emb = self.feature_fusion_add(feat0_dist_emb, feat1_dist_emb)
         dist_emb = torch.reshape(dist_emb, (dist_emb.shape[0], -1, dist_emb.shape[-1]))
 
@@ -179,14 +193,34 @@ class transformer(Module):
         x = rearrange(x, 'b h w c -> b c h w')
         return x
 
+    def forward(self, x_t, t, feats):
+        x = x_t.squeeze(1)
+        ref_x = x
+        src_x = x.transpose(1, 2)
+        ref_feats = self.input_proj_ref(ref_x)
+        src_feats = self.input_proj_src(src_x)
 
+        ref_geo_emb = feats['ref_geo_emb']
+        src_geo_emb = feats['src_geo_emb']
 
+        t_emb = self.time_emb(t)
+
+        x = self.transformer(
+            ref_feats,
+            src_feats,
+            ref_geo_emb,
+            src_geo_emb,
+            t_emb,
+        )
 
 
 
 def modulate(x, shift, scale):
     return x * (1 + scale.unsqueeze(1)) + shift.unsqueeze(1)
 
+def _check_block_type(block):
+    if block not in ['self', 'cross']:
+        raise ValueError('Unsupported block type "{}".'.format(block))
 
 class DiTBlock(Module):
     """
@@ -204,12 +238,210 @@ class DiTBlock(Module):
             SiLU(),
             Linear(hidden_size, 6 * hidden_size, bias=True)
         )
+        
 
-    def forward(self, x, c):
+    def forward(self, x1, x2, c):
         shift_msa, scale_msa, gate_msa, shift_mlp, scale_mlp, gate_mlp = self.adaLN_modulation(c).chunk(6, dim=1)
+        adaLN = {}
+        adaLN['shift_msa'] = shift_msa
+        adaLN['scale_msa'] = scale_msa
+        adaLN['gate_msa'] = gate_msa
+        adaLN['shift_mlp'] = shift_mlp
+        adaLN['scale_mlp'] = scale_mlp
+        adaLN['gate_mlp'] = gate_mlp
+
         x = x + gate_msa.unsqueeze(1) * self.attn(modulate(x, shift_msa, scale_msa))
         x = x + gate_mlp.unsqueeze(1) * self.mlp(modulate(self.norm2(x), shift_mlp, scale_mlp))
         return x
+    
+        
+
+    
+class RPEAttentionLayer(Module):
+    def __init__(self, d_model, num_heads, dropout=None):
+        super(RPEAttentionLayer, self).__init__()
+        self.attention = RPEMultiHeadAttention(d_model, num_heads, dropout=dropout)
+        self.linear = Linear(d_model, d_model)
+        self.dropout = build_dropout_layer(dropout)
+        self.norm = LayerNorm(d_model)
+
+    def forward(
+        self,
+        input_states,
+        memory_states,
+        position_states,
+        adaLN,
+        memory_weights=None,
+        memory_masks=None,
+        attention_factors=None,
+    ):
+        shift_msa = adaLN['shift_msa']
+        scale_msa = adaLN['scale_msa']
+        gate_msa = adaLN['gate_msa']
+        mod_states = modulate(self.norm(input_states), shift_msa, scale_msa)
+        hidden_states, attention_scores = self.attention(
+            mod_states,
+            memory_states,
+            memory_states,
+            position_states,
+            key_weights=memory_weights,
+            key_masks=memory_masks,
+            attention_factors=attention_factors,
+        )
+
+        hidden_states = self.linear(hidden_states)
+        hidden_states = self.dropout(hidden_states)
+        output_states = input_states + gate_msa.unsqueeze(1) * hidden_states
+        return output_states, attention_scores
+
+class AttentionOutput(Module):
+    def __init__(self, d_model, dropout=None, activation_fn='ReLU'):
+        super(AttentionOutput, self).__init__()
+        self.expand = Linear(d_model, d_model * 2)
+        self.activation = build_act_layer(activation_fn)
+        self.squeeze = Linear(d_model * 2, d_model)
+        self.dropout = build_dropout_layer(dropout)
+        self.norm = LayerNorm(d_model)
+
+    def forward(self, input_states, adaLN):
+        shift_mlp = adaLN['shift_mlp']
+        scale_mlp = adaLN['scale_mlp']
+        gate_mlp = adaLN['gate_mlp']
+
+        mod_states = modulate(self.norm(input_states), shift_mlp, scale_mlp)
+        hidden_states = self.expand(mod_states)
+        hidden_states = self.activation(hidden_states)
+        hidden_states = self.squeeze(hidden_states)
+        hidden_states = self.dropout(hidden_states)
+        output_states = input_states + gate_mlp.unsqueeze(1) * hidden_states
+        return output_states
+    
+class RPETransformerLayer(Module):
+    def __init__(self, d_model, num_heads, dropout=None, activation_fn='ReLU'):
+        super(RPETransformerLayer, self).__init__()
+        self.attention = RPEAttentionLayer(d_model, num_heads, dropout=dropout)
+        self.output = AttentionOutput(d_model, dropout=dropout, activation_fn=activation_fn)
+
+    def forward(
+        self,
+        input_states,
+        memory_states,
+        position_states,
+        adaLN,
+        memory_weights=None,
+        memory_masks=None,
+        attention_factors=None,
+    ):
+        hidden_states, attention_scores = self.attention(
+            input_states,
+            memory_states,
+            position_states,
+            adaLN,
+            memory_weights=memory_weights,
+            memory_masks=memory_masks,
+            attention_factors=attention_factors,
+        )
+        output_states = self.output(hidden_states, adaLN)
+        return output_states, attention_scores
+
+
+class RPEConditionalTransformer(Module):
+    def __init__(
+        self,
+        blocks,
+        d_model,
+        num_heads,
+        dropout=None,
+        activation_fn='ReLU',
+        return_attention_scores=False,
+        parallel=False,
+    ):
+        super(RPEConditionalTransformer, self).__init__()
+        self.blocks = blocks
+        layers = []
+        for block in self.blocks:
+            _check_block_type(block)
+            if block == 'self':
+                layers.append(RPETransformerLayer(d_model, num_heads, dropout=dropout, activation_fn=activation_fn))
+            else:
+                layers.append(TransformerLayer(d_model, num_heads, dropout=dropout, activation_fn=activation_fn))
+        self.layers = ModuleList(layers)
+        self.return_attention_scores = return_attention_scores
+        self.parallel = parallel
+
+
+    def forward(self, feats0, feats1, embeddings0, embeddings1, adaLN, masks0=None, masks1=None):
+        attention_scores = []
+        for i, block in enumerate(self.blocks):
+            if block == 'self':
+                feats0, scores0 = self.layers[i](feats0, feats0, embeddings0, adaLN, memory_masks=masks0)
+                feats1, scores1 = self.layers[i](feats1, feats1, embeddings1, adaLN, memory_masks=masks1)
+            else:
+                if self.parallel:
+                    new_feats0, scores0 = self.layers[i](feats0, feats1, memory_masks=masks1)
+                    new_feats1, scores1 = self.layers[i](feats1, feats0, memory_masks=masks0)
+                    feats0 = new_feats0
+                    feats1 = new_feats1
+                else:
+                    feats0, scores0 = self.layers[i](feats0, feats1, memory_masks=masks1)
+                    feats1, scores1 = self.layers[i](feats1, feats0, memory_masks=masks0)
+
+            if self.return_attention_scores:
+                attention_scores.append([scores0, scores1])
+        if self.return_attention_scores:
+            return feats0, feats1, attention_scores
+        else:
+            return feats0, feats1
+        
+class RPEDiT(Module):
+    def __init__(
+        self,
+        hidden_dim,
+        num_heads,
+        blocks,
+        dropout=None,
+        activation_fn='ReLU',
+    ):
+        super(RPEDiT, self).__init__()
+        self.transformer = RPEConditionalTransformer(
+            blocks, hidden_dim, num_heads, dropout=dropout, activation_fn=activation_fn
+        )
+        self.final_layer = Finallayer(hidden_dim, 2)
+        self.adaLN_modulation = Sequential(
+            SiLU(),
+            Linear(hidden_dim, 6 * hidden_dim, bias=True)
+        )
+
+    def forward(
+            self,
+            ref_feats,
+            src_feats,
+            ref_geo_emb,
+            src_geo_emb,
+            t_emb,
+    ):
+        shift_msa, scale_msa, gate_msa, shift_mlp, scale_mlp, gate_mlp = self.adaLN_modulation(t_emb).chunk(6, dim=1)
+        adaLN = {}
+        adaLN['shift_msa'] = shift_msa
+        adaLN['scale_msa'] = scale_msa
+        adaLN['gate_msa'] = gate_msa
+        adaLN['shift_mlp'] = shift_mlp
+        adaLN['scale_mlp'] = scale_mlp
+        adaLN['gate_mlp'] = gate_mlp
+
+        feat0, feat1 = self.transformer(
+            ref_feats,
+            src_feats,
+            ref_geo_emb,
+            src_geo_emb,
+            adaLN
+        )
+        feat_mat = feat0.unsqueeze(2).repeat(1, 1, feat1.shape[1], 1) + feat1.unsqueeze(1).repeat(1, feat0.shape[1], 1, 1)
+        feat_mat = feat_mat.view(feat0.shape[0], feat0.shape[1], feat1.shape[1], -1)
+        feat_mat = self.final_layer(feat_mat, t_emb)
+
+        return feat_mat
+
     
 class Finallayer(Module):
     """
