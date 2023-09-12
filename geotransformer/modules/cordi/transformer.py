@@ -125,16 +125,23 @@ class transformer(Module):
 
         feat0 = feats.get('ref_feats')
         feat1 = feats.get('src_feats')
+        #feat0 = feats.get('ref_knn_feats')
+        #feat1 = feats.get('src_knn_feats')
 
         feat0_dist_emb = feats['ref_dist_emb']
         feat1_dist_emb = feats['src_dist_emb']
-        dist_emb = self.feature_fusion_cat(feat0_dist_emb, feat1_dist_emb)
+        dist_emb = self.feature_fusion_add(feat0_dist_emb, feat1_dist_emb)
         dist_emb = torch.reshape(dist_emb, (dist_emb.shape[0], -1, dist_emb.shape[-1]))
 
         feat0_voxel_emb = feats['ref_voxel_emb']
         feat1_voxel_emb = feats['src_voxel_emb']
         voxel_emb = self.feature_fusion_add(feat0_voxel_emb, feat1_voxel_emb)
         voxel_emb = torch.reshape(voxel_emb, (voxel_emb.shape[0], -1, voxel_emb.shape[-1]))
+
+        feat0_knn_emb = feats['ref_knn_emb']
+        feat1_knn_emb = feats['src_knn_emb']
+        knn_emb = self.feature_fusion_cat(feat0_knn_emb, feat1_knn_emb)
+        knn_emb = torch.reshape(knn_emb, (knn_emb.shape[0], -1, knn_emb.shape[-1]))
 
         feat_2d = feats.get('feat_2d')
         c_2d = self.feat_2d_mlp(feat_2d)
@@ -160,13 +167,13 @@ class transformer(Module):
         x = torch.reshape(x, (x.shape[0], -1, x.shape[-1]))
         #x = x + dist_emb + ctx
         t = self.time_emb(t)
-        c = t + c_2d
+        #c = t + c_2d
         x = x + ctx
         for i in range (self.n_layers):
             
             #x, _ = self.feature_cross_attention[i](x, ctx)
-            x = self.DiT_blocks[i](x, c)
-        x = self.output_mlp(x, c)
+            x = self.DiT_blocks[i](x, t)
+        x = self.output_mlp(x, t)
         #x = x[:, :-1, :]
         x = torch.reshape(x, (x_t.shape[0], x_t.shape[2], x_t.shape[3], -1))
         x = rearrange(x, 'b h w c -> b c h w')

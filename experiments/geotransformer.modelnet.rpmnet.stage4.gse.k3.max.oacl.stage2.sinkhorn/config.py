@@ -34,7 +34,7 @@ ensure_dir(_C.result_dir)
 _C.wandb = edict()
 _C.wandb.enable = True
 _C.wandb.project = "cordi_corr_base"
-_C.wandb.name = "lm6_cat_sa_ctx_2d_once_fl_sigma_0.1"
+_C.wandb.name = "lm6_cat_sa_ctx_wll_once_fl_sigma_0.1"
 
 
 # data

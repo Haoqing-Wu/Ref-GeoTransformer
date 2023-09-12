@@ -95,7 +95,7 @@ def train_valid_data_loader(cfg, distributed):
     # )
     test_dataset = LMODataset(
         data_folder='./data/',
-        reload_data=True,
+        reload_data=False,
         data_augmentation=False,
         rotated=False,
         rot_factor=1.0,

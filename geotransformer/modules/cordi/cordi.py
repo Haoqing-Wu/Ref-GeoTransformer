@@ -61,16 +61,16 @@ class Cordi(Module):
             reduction_a=cfg.geotransformer.reduction_a
         )
         self.geo_proj_ref = nn.Sequential(
-            nn.Linear(self.ref_sample_num*cfg.ddpm.geo_embedding_dim, cfg.ddpm.geo_embedding_dim),
+            nn.Linear(self.ref_sample_num*cfg.ddpm.geo_embedding_dim, 2048),
             nn.ReLU(),
-            nn.Linear(cfg.ddpm.geo_embedding_dim, cfg.ddpm.geo_embedding_dim)
+            nn.Linear(2048, 256)
         )
         self.geo_proj_src = nn.Sequential(
-            nn.Linear(self.src_sample_num*cfg.ddpm.geo_embedding_dim, cfg.ddpm.geo_embedding_dim),
+            nn.Linear(self.src_sample_num*cfg.ddpm.geo_embedding_dim, 2048),
             nn.ReLU(),
-            nn.Linear(cfg.ddpm.geo_embedding_dim, cfg.ddpm.geo_embedding_dim)
+            nn.Linear(2048, 256)
         )
-        self.voxel_emb = SinusoidalPositionEmbeddings3D(256)
+        self.voxel_emb = SinusoidalPositionEmbeddings3D(128)
 
     def downsample(self, batch_latent_data, slim=False):
         b_ref_points_sampled = []
@@ -103,7 +103,7 @@ class Cordi(Module):
             
             init_corr_matrix = torch.zeros((ref_points.shape[0], src_points.shape[0])).cuda()
             init_corr_matrix[init_ref_corr_indices, init_src_corr_indices] = 1
-            #init_corr_matrix[ref_no_match_indices, src_no_match_indices] = 1
+            init_corr_matrix[ref_no_match_indices, src_no_match_indices] = 1
 
             # Get gt corr matrix from gt corr pairs
             gt_corr_matrix = torch.zeros((ref_points.shape[0], src_points.shape[0])).cuda()
@@ -183,6 +183,29 @@ class Cordi(Module):
         emb = self.voxel_emb(voxel_grids)
 
         return emb
+
+    def knn_indices(self, pcd, k):
+        dists = torch.cdist(pcd, pcd)
+        knn_indices = torch.topk(dists, k=k, dim=2, largest=False).indices
+        return knn_indices
+    
+    def add_feature_from_indices(self, feats, indices):
+        # feats: (B, N, C)
+        # indices: (B, N, K)
+        # return: (B, N, C)
+        B, N, K = indices.shape
+        C = feats.shape[2]
+        indices = indices.reshape(B, N*K)
+        feats = feats.reshape(B*N, C)
+        knn_feats = feats[indices, :]
+        knn_feats = knn_feats.reshape(B, N, K, C)
+        knn_feats = torch.mean(knn_feats, dim=2)
+        return knn_feats
+    
+    def create_weighted_mask(self, mask, w1, w2):
+        # replace 1 with w1, 0 with w2
+        mask = mask * w1 + (1 - mask) * w2
+        return mask
         
 
     
@@ -192,6 +215,7 @@ class Cordi(Module):
     
         mat = d_dict.get('gt_corr_score_matrix').cuda().unsqueeze(1)
         mask = d_dict.get('init_corr_matrix').cuda()
+        weighted_mask = self.create_weighted_mask(mask, 1.0, 0.1)
         ref_feats = d_dict.get('ref_feats').cuda()
         src_feats = d_dict.get('src_feats').cuda()
         ref_mid_feats = d_dict.get('ref_mid_feats').cuda()
@@ -202,6 +226,13 @@ class Cordi(Module):
         ref_dist_emb, src_dist_emb = self.geometric_embedding(ref_points, src_points)
         ref_voxel_emb = self.voxel_embedding(ref_points)
         src_voxel_emb = self.voxel_embedding(src_points)
+        ref_knn_indices = self.knn_indices(ref_points, 3)
+        src_knn_indices = self.knn_indices(src_points, 3)
+        ref_knn_emb = self.voxel_emb(ref_knn_indices)
+        src_knn_emb = self.voxel_emb(src_knn_indices)
+        ref_knn_feats = self.add_feature_from_indices(ref_feats, ref_knn_indices)
+        src_knn_feats = self.add_feature_from_indices(src_feats, src_knn_indices)
+
         feats = {}
         feats['ref_feats'] = ref_feats
         feats['src_feats'] = src_feats
@@ -212,7 +243,12 @@ class Cordi(Module):
         feats['src_dist_emb'] = src_dist_emb
         feats['ref_voxel_emb'] = ref_voxel_emb
         feats['src_voxel_emb'] = src_voxel_emb
+        feats['ref_knn_emb'] = ref_knn_emb
+        feats['src_knn_emb'] = src_knn_emb
+        feats['ref_knn_feats'] = ref_knn_feats
+        feats['src_knn_feats'] = src_knn_feats
         feats['mask'] = mask
+        feats['weighted_mask'] = weighted_mask
 
         t = torch.randint(0, self.diffusion_new.num_timesteps, (mat.shape[0],), device='cuda')
         loss_dict = self.diffusion_new.training_losses(self.net, mat, t, feats)
@@ -225,6 +261,7 @@ class Cordi(Module):
         #mat_T = torch.randn((1, self.ref_sample_num, self.src_sample_num)).cuda()
         mat_T = torch.randn_like(d_dict.get('gt_corr_score_matrix')).cuda().unsqueeze(1)
         mask = d_dict.get('init_corr_matrix').cuda()
+        weighted_mask = self.create_weighted_mask(mask, 1.0, 0.1)
         ref_feats = d_dict.get('ref_feats').cuda()
         src_feats = d_dict.get('src_feats').cuda()
         ref_mid_feats = d_dict.get('ref_mid_feats').cuda()
@@ -234,7 +271,15 @@ class Cordi(Module):
         ref_dist_emb, src_dist_emb = self.geometric_embedding(ref_points, src_points)
         ref_voxel_emb = self.voxel_embedding(ref_points)
         src_voxel_emb = self.voxel_embedding(src_points)
+        ref_knn_indices = self.knn_indices(ref_points, 3)
+        src_knn_indices = self.knn_indices(src_points, 3)
+        ref_knn_emb = self.voxel_emb(ref_knn_indices)
+        src_knn_emb = self.voxel_emb(src_knn_indices)
+        ref_knn_feats = self.add_feature_from_indices(ref_feats, ref_knn_indices)
+        src_knn_feats = self.add_feature_from_indices(src_feats, src_knn_indices)
+
         feat_2d = d_dict.get('feat_2d').cuda()
+
         feats = {}
         feats['ref_feats'] = ref_feats
         feats['src_feats'] = src_feats
@@ -245,7 +290,12 @@ class Cordi(Module):
         feats['src_dist_emb'] = src_dist_emb
         feats['ref_voxel_emb'] = ref_voxel_emb
         feats['src_voxel_emb'] = src_voxel_emb
+        feats['ref_knn_emb'] = ref_knn_emb
+        feats['src_knn_emb'] = src_knn_emb
+        feats['ref_knn_feats'] = ref_knn_feats
+        feats['src_knn_feats'] = src_knn_feats
         feats['mask'] = mask
+        feats['weighted_mask'] = weighted_mask
 
         pred_corr_mat = self.diffusion_new.p_sample_loop(
             self.net, mat_T.shape, mat_T, clip_denoised=False, model_kwargs=feats, progress=True, device='cuda'

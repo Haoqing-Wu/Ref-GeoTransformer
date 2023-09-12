@@ -776,6 +776,10 @@ class GaussianDiffusion:
                 ModelMeanType.EPSILON: noise,
             }[self.model_mean_type]
             assert model_output.shape == target.shape == x_start.shape
+
+            # get weighted mask
+            #mask = model_kwargs.get("weighted_mask").unsqueeze(1)
+
             terms["mse"] = mean_flat((target - model_output) ** 2)
             if "vb" in terms:
                 terms["loss"] = terms["mse"] + terms["vb"]
