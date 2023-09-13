@@ -32,9 +32,9 @@ ensure_dir(_C.result_dir)
 
 # wandb
 _C.wandb = edict()
-_C.wandb.enable = False
+_C.wandb.enable = True
 _C.wandb.project = "cordi_corr_base"
-_C.wandb.name = "lm6_cat_sa_ctx_wll_once_fl_sigma_0.1"
+_C.wandb.name = "lm6_vt_rpedit_L_8l_res_sigma_0.1"
 
 
 # data
@@ -87,7 +87,7 @@ _C.optim.weight_decay = 1e-6
 _C.optim.warmup_steps = 1000
 _C.optim.eta_init = 0.1
 _C.optim.eta_min = 0.1
-_C.optim.max_iteration = 30000
+_C.optim.max_iteration = 100000
 _C.optim.snapshot_steps = 2000
 _C.optim.grad_acc_steps = 1
 
@@ -165,14 +165,14 @@ _C.ddpm.size_factor = 0.8
 _C.ddpm.sample_topk = 32
 _C.ddpm.sample_topk_1_2 = 16
 _C.ddpm.sample_topk_1_4 = 8
-_C.ddpm.time_emb_dim = 256
-_C.ddpm.geo_embedding_dim = 256
+_C.ddpm.time_emb_dim = 512
+_C.ddpm.geo_embedding_dim = 512
 _C.ddpm.use_ddpm_reference = False
 
 # model - DDPM - Transformer
 _C.ddpm_transformer = edict()
 _C.ddpm_transformer.n_layers = 8
-_C.ddpm_transformer.n_heads = 4
+_C.ddpm_transformer.n_heads = 8
 _C.ddpm_transformer.query_dimensions = 64
 _C.ddpm_transformer.value_dimensions = 64
 _C.ddpm_transformer.feed_forward_dimensions = 2048

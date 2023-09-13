@@ -1,4 +1,5 @@
 import torch
+import torch.nn.functional as F
 import math
 from torch.nn import Module, TransformerEncoder, TransformerEncoderLayer, Sequential, Linear, LayerNorm, ReLU, GELU, SiLU, ModuleList
 from geotransformer.modules.transformer.vanilla_transformer import TransformerLayer
@@ -80,7 +81,21 @@ class transformer(Module):
         self.transformer = RPEDiT(
             hidden_dim=self.d_model,
             num_heads=n_heads,
-            blocks=['self', 'cross', 'self', 'cross', 'self', 'cross'],
+            blocks=['self', 'cross', 'self', 'cross', 'self', 'cross', 'self', 'cross'],
+            n_ref=self.n_ref,
+            n_src=self.n_src
+        )
+        #self.final_layer = Finallayer(self.d_model, 2)
+        self.final_layer = Sequential(
+            LayerNorm(self.d_model),
+            Linear(self.d_model, 256),
+            ReLU(),
+            Linear(256, 2)
+        )
+        self.split = Sequential(
+            Linear(1, 256),
+            ReLU(),
+            Linear(256, 2)
         )
         
 
@@ -197,21 +212,26 @@ class transformer(Module):
         x = x_t.squeeze(1)
         ref_x = x
         src_x = x.transpose(1, 2)
-        ref_feats = self.input_proj_ref(ref_x)
-        src_feats = self.input_proj_src(src_x)
 
         ref_geo_emb = feats['ref_geo_emb']
         src_geo_emb = feats['src_geo_emb']
 
         t_emb = self.time_emb(t)
 
-        x = self.transformer(
-            ref_feats,
-            src_feats,
+        ref_x, src_x = self.transformer(
+            ref_x,
+            src_x,
             ref_geo_emb,
             src_geo_emb,
             t_emb,
         )
+        src_x = src_x.transpose(1, 2)
+        x = torch.mean(torch.stack((ref_x, src_x)), dim=0)
+        x = self.split(x)
+        #x = ref_x.unsqueeze(2).repeat(1, 1, src_x.shape[1], 1) + src_x.unsqueeze(1).repeat(1, ref_x.shape[1], 1, 1)
+        #x = self.final_layer(x)
+        x = rearrange(x, 'b h w c -> b c h w')
+        return x
 
 
 
@@ -279,6 +299,7 @@ class RPEAttentionLayer(Module):
         scale_msa = adaLN['scale_msa']
         gate_msa = adaLN['gate_msa']
         mod_states = modulate(self.norm(input_states), shift_msa, scale_msa)
+        #mod_states = modulate(input_states, shift_msa, scale_msa)
         hidden_states, attention_scores = self.attention(
             mod_states,
             memory_states,
@@ -358,14 +379,18 @@ class RPEConditionalTransformer(Module):
     ):
         super(RPEConditionalTransformer, self).__init__()
         self.blocks = blocks
-        layers = []
+        layers0 = []
+        layers1 = []
         for block in self.blocks:
             _check_block_type(block)
             if block == 'self':
-                layers.append(RPETransformerLayer(d_model, num_heads, dropout=dropout, activation_fn=activation_fn))
+                layers0.append(RPETransformerLayer(d_model, num_heads, dropout=dropout, activation_fn=activation_fn))
+                layers1.append(RPETransformerLayer(d_model, num_heads, dropout=dropout, activation_fn=activation_fn))
             else:
-                layers.append(TransformerLayer(d_model, num_heads, dropout=dropout, activation_fn=activation_fn))
-        self.layers = ModuleList(layers)
+                layers0.append(TransformerLayer(d_model, num_heads, dropout=dropout, activation_fn=activation_fn))
+                layers1.append(TransformerLayer(d_model, num_heads, dropout=dropout, activation_fn=activation_fn))
+        self.layers0 = ModuleList(layers0)
+        self.layers1 = ModuleList(layers1)
         self.return_attention_scores = return_attention_scores
         self.parallel = parallel
 
@@ -374,17 +399,17 @@ class RPEConditionalTransformer(Module):
         attention_scores = []
         for i, block in enumerate(self.blocks):
             if block == 'self':
-                feats0, scores0 = self.layers[i](feats0, feats0, embeddings0, adaLN, memory_masks=masks0)
-                feats1, scores1 = self.layers[i](feats1, feats1, embeddings1, adaLN, memory_masks=masks1)
+                feats0, scores0 = self.layers0[i](feats0, feats0, embeddings0, adaLN, memory_masks=masks0)
+                feats1, scores1 = self.layers1[i](feats1, feats1, embeddings1, adaLN, memory_masks=masks1)
             else:
                 if self.parallel:
-                    new_feats0, scores0 = self.layers[i](feats0, feats1, memory_masks=masks1)
-                    new_feats1, scores1 = self.layers[i](feats1, feats0, memory_masks=masks0)
+                    new_feats0, scores0 = self.layers0[i](feats0, feats1, memory_masks=masks1)
+                    new_feats1, scores1 = self.layers1[i](feats1, feats0, memory_masks=masks0)
                     feats0 = new_feats0
                     feats1 = new_feats1
                 else:
-                    feats0, scores0 = self.layers[i](feats0, feats1, memory_masks=masks1)
-                    feats1, scores1 = self.layers[i](feats1, feats0, memory_masks=masks0)
+                    feats0, scores0 = self.layers0[i](feats0, feats1, memory_masks=masks1)
+                    feats1, scores1 = self.layers1[i](feats1, feats0, memory_masks=masks0)
 
             if self.return_attention_scores:
                 attention_scores.append([scores0, scores1])
@@ -399,14 +424,21 @@ class RPEDiT(Module):
         hidden_dim,
         num_heads,
         blocks,
+        n_ref,
+        n_src,
         dropout=None,
         activation_fn='ReLU',
     ):
         super(RPEDiT, self).__init__()
+        self.n_ref = n_ref
+        self.n_src = n_src
+        self.input_proj0 = Linear(n_src, hidden_dim)
+        self.input_proj1 = Linear(n_ref, hidden_dim)
         self.transformer = RPEConditionalTransformer(
             blocks, hidden_dim, num_heads, dropout=dropout, activation_fn=activation_fn
         )
-        self.final_layer = Finallayer(hidden_dim, 2)
+        self.final_layer0 = Finallayer(hidden_dim, n_src)
+        self.final_layer1 = Finallayer(hidden_dim, n_ref)
         self.adaLN_modulation = Sequential(
             SiLU(),
             Linear(hidden_dim, 6 * hidden_dim, bias=True)
@@ -414,10 +446,10 @@ class RPEDiT(Module):
 
     def forward(
             self,
-            ref_feats,
-            src_feats,
-            ref_geo_emb,
-            src_geo_emb,
+            feats0_in,
+            feats1_in,
+            geo_emb0,
+            geo_emb1,
             t_emb,
     ):
         shift_msa, scale_msa, gate_msa, shift_mlp, scale_mlp, gate_mlp = self.adaLN_modulation(t_emb).chunk(6, dim=1)
@@ -429,18 +461,24 @@ class RPEDiT(Module):
         adaLN['scale_mlp'] = scale_mlp
         adaLN['gate_mlp'] = gate_mlp
 
-        feat0, feat1 = self.transformer(
-            ref_feats,
-            src_feats,
-            ref_geo_emb,
-            src_geo_emb,
+        feats0 = self.input_proj0(feats0_in)
+        feats1 = self.input_proj1(feats1_in)
+
+        feats0, feats1 = self.transformer(
+            feats0,
+            feats1,
+            geo_emb0,
+            geo_emb1,
             adaLN
         )
-        feat_mat = feat0.unsqueeze(2).repeat(1, 1, feat1.shape[1], 1) + feat1.unsqueeze(1).repeat(1, feat0.shape[1], 1, 1)
-        feat_mat = feat_mat.view(feat0.shape[0], feat0.shape[1], feat1.shape[1], -1)
-        feat_mat = self.final_layer(feat_mat, t_emb)
+        feats0 = F.normalize(feats0, p=2, dim=1)
+        feats1 = F.normalize(feats1, p=2, dim=1)
+        feats0 = self.final_layer0(feats0, t_emb).view(feats0.shape[0], -1, self.n_src, 1)
+        feats1 = self.final_layer1(feats1, t_emb).view(feats1.shape[0], -1, self.n_ref, 1)
+        feats0 = feats0 + feats0_in.unsqueeze(-1)
+        feats1 = feats1 + feats1_in.unsqueeze(-1)
 
-        return feat_mat
+        return feats0, feats1
 
     
 class Finallayer(Module):
