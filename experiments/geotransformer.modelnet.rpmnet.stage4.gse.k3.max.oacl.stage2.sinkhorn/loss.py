@@ -4,7 +4,7 @@ import torch.nn as nn
 from geotransformer.modules.ops import apply_transform, pairwise_distance
 from geotransformer.modules.loss import WeightedCircleLoss
 from geotransformer.modules.registration.metrics import isotropic_transform_error
-
+from geotransformer.datasets.registration.linemod.bop_utils import *
 
 class CoarseMatchingLoss(nn.Module):
     def __init__(self, cfg):
@@ -165,6 +165,7 @@ class DDPMEvaluator(nn.Module):
         self.acceptance_radius = cfg.eval.acceptance_radius
         self.acceptance_rre = cfg.eval.rre_threshold
         self.acceptance_rte = cfg.eval.rte_threshold
+        self.matching_radius = cfg.model.ground_truth_matching_radius
 
     @torch.no_grad()
     def evaluate_coarse_geotransformer(self, output_dict):
@@ -197,8 +198,16 @@ class DDPMEvaluator(nn.Module):
         return precision, precision_m, precision_s
 
     @torch.no_grad()
-    def evaluate_coarse(self, output_dict):   
-        gt_corr_matrix = output_dict['gt_corr_matrix']
+    def evaluate_coarse(self, output_dict, data_dict):  
+        gt_transform = data_dict['transform'].cpu()
+        ref_points = data_dict['ref_points'].cpu()
+        src_points = data_dict['src_points'].cpu()
+        gt_node_corr_indices = get_corr_indices_from_r(ref_points, src_points, gt_transform, self.matching_radius)
+
+        gt_corr_matrix = torch.zeros(ref_points.shape[0], src_points.shape[0])
+        gt_corr_matrix[gt_node_corr_indices[:, 0], gt_node_corr_indices[:, 1]] = 1.0
+
+
         pred_corr = output_dict['pred_corr']
         if len(pred_corr) < 1:
             precision = 0.0
@@ -279,10 +288,9 @@ class DDPMEvaluator(nn.Module):
 
         return rre, rte, rmse, recall
 
-    def forward(self, output_dict, latent_dict):
+    def forward(self, output_dict, data_dict):
         c_precision, c_precision_1_2, c_precision_1_4, precision_0_9, pred_corr_0_95, precision_1, \
-            num_corr_0_9, num_corr_0_95, num_corr_1 = self.evaluate_coarse(output_dict)
-        geo_precision, geo_precision_m, geo_precision_s = self.evaluate_coarse_geotransformer(latent_dict)
+            num_corr_0_9, num_corr_0_95, num_corr_1 = self.evaluate_coarse(output_dict, data_dict)
         return {
             'PIR': c_precision,
             'PIR_M': c_precision_1_2,
@@ -293,7 +301,4 @@ class DDPMEvaluator(nn.Module):
             'Corr_num_0_9': num_corr_0_9,
             'Corr_num_0_95': num_corr_0_95,
             'Corr_num_1': num_corr_1,
-            'GIR': geo_precision,
-            'GIR_M': geo_precision_m,
-            'GIR_S': geo_precision_s
         }

@@ -34,7 +34,7 @@ ensure_dir(_C.result_dir)
 _C.wandb = edict()
 _C.wandb.enable = True
 _C.wandb.project = "cordi_corr_base"
-_C.wandb.name = "lm6_vt_rpedit_L_8l_res_sigma_0.1"
+_C.wandb.name = "lmA_b20_rpedit_fs_L_vox_notr_8l_sigma_0.3"
 
 
 # data
@@ -87,14 +87,14 @@ _C.optim.weight_decay = 1e-6
 _C.optim.warmup_steps = 1000
 _C.optim.eta_init = 0.1
 _C.optim.eta_min = 0.1
-_C.optim.max_iteration = 100000
-_C.optim.snapshot_steps = 2000
+_C.optim.max_iteration = 1000000
+_C.optim.snapshot_steps = 20000
 _C.optim.grad_acc_steps = 1
 
 # model - backbone
 _C.backbone = edict()
 _C.backbone.num_stages = 3
-_C.backbone.init_voxel_size = 0.05
+_C.backbone.init_voxel_size = 0.004
 _C.backbone.kernel_size = 15
 _C.backbone.base_radius = 3.0
 _C.backbone.base_sigma = 2.0
@@ -107,7 +107,7 @@ _C.backbone.output_dim = 256
 
 # model - Global
 _C.model = edict()
-_C.model.ground_truth_matching_radius = 0.05
+_C.model.ground_truth_matching_radius = 0.01
 _C.model.num_points_in_patch = 128
 _C.model.num_sinkhorn_iterations = 100
 
@@ -153,12 +153,12 @@ _C.dino.checkpoint_key = "teacher"
 
 # model - DDPM
 _C.ddpm = edict()
-_C.ddpm.batch_size = 1
+_C.ddpm.batch_size = 20
 _C.ddpm.num_steps = 400
 _C.ddpm.beta_1 = 1e-4
 _C.ddpm.beta_T = 0.02
 _C.ddpm.sched_mode = 'linear'
-_C.ddpm.ref_sample_num = 39
+_C.ddpm.ref_sample_num = 38
 _C.ddpm.src_sample_num = 80
 _C.ddpm.adaptive_size = False
 _C.ddpm.size_factor = 0.8

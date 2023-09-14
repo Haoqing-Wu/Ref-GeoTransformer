@@ -147,6 +147,7 @@ class GeoTransformer(nn.Module):
             ref_knn_masks=ref_node_knn_masks_sel,
             src_knn_masks=src_node_knn_masks_sel,
         )
+
         gt_corr_score_matrix = get_corr_score_matrix(ref_points_sel_c, src_points_sel_c, transform)
 
         output_dict['gt_node_corr_indices'] = gt_node_corr_indices

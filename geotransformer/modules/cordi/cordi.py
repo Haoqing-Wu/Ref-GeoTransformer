@@ -16,6 +16,7 @@ class Cordi(Module):
         self.cfg = cfg
         self.ref_sample_num = cfg.ddpm.ref_sample_num
         self.src_sample_num = cfg.ddpm.src_sample_num
+        self.matching_radius = cfg.model.ground_truth_matching_radius
         self.geo_embedding_dim = cfg.ddpm.geo_embedding_dim
         self.adaptive_size = cfg.ddpm.adaptive_size
         self.size_factor = cfg.ddpm.size_factor
@@ -70,7 +71,7 @@ class Cordi(Module):
             nn.ReLU(),
             nn.Linear(2048, 256)
         )
-        self.voxel_emb = SinusoidalPositionEmbeddings3D(256)
+        self.voxel_emb = SinusoidalPositionEmbeddings3D(512)
 
     def downsample(self, batch_latent_data, slim=False):
         b_ref_points_sampled = []
@@ -163,7 +164,7 @@ class Cordi(Module):
 
         return ref_geo_emb, src_geo_emb
     
-    def voxel_embedding(self, pcd_in, voxel_size=0.1):
+    def voxel_embedding(self, pcd_in, voxel_size=0.004):
         for batch in range(pcd_in.shape[0]):
             pcd = pcd_in[batch]
             pcd = pcd.cpu().numpy()
@@ -208,94 +209,82 @@ class Cordi(Module):
         return mask
         
 
-    
-    def get_loss(self, batch_latent_data):
+    def prepare_data(self, data_dict):
+        output_dict = {}
 
-        d_dict = self.downsample(batch_latent_data)
+        transform = data_dict['transform']
+
+        ref_length_c = data_dict['lengths'][-1][0].item()
+        points_c = data_dict['points'][-1]
+        ref_points_c = points_c[:ref_length_c]
+        src_points_c = points_c[ref_length_c:]
+        
+        sel_ref_indices = torch.randperm(ref_points_c.shape[0])[:self.ref_sample_num]
+        sel_ref_indices = torch.sort(sel_ref_indices)[0]
+        sel_src_indices = torch.randperm(src_points_c.shape[0])[:self.src_sample_num]
+        sel_src_indices = torch.sort(sel_src_indices)[0]
+        ref_points_sel_c = ref_points_c[sel_ref_indices]
+        src_points_sel_c = src_points_c[sel_src_indices]
+
+        gt_corr_score_matrix = get_corr_score_matrix(ref_points_sel_c, src_points_sel_c, transform)
+        #gt_node_corr_indices = get_corr_indices_from_r(ref_points_sel_c, src_points_sel_c, transform, self.matching_radius)
+
+        output_dict['transform'] = transform
+        output_dict['ref_points'] = ref_points_sel_c
+        output_dict['src_points'] = src_points_sel_c
+        #output_dict['gt_node_corr_indices'] = gt_node_corr_indices
+        output_dict['gt_corr_score_matrix'] = gt_corr_score_matrix
+        return output_dict
+
+    def batchify_from_list(self, list):
+        batch = {}
+        for data_dict in list:
+            for key, value in data_dict.items():
+                if key not in batch:
+                    batch[key] = []
+                batch[key].append(value.unsqueeze(0))
+        # cat the batch elements along the first dimension
+        for key, value in batch.items():
+            batch[key] = torch.cat(value, dim=0)
+        return batch
+            
+
+    def get_loss(self, d_dict):
     
-        mat = d_dict.get('gt_corr_score_matrix').cuda().unsqueeze(1)
-        mask = d_dict.get('init_corr_matrix').cuda()
-        weighted_mask = self.create_weighted_mask(mask, 1.0, 0.1)
-        ref_feats = d_dict.get('ref_feats').cuda()
-        src_feats = d_dict.get('src_feats').cuda()
-        ref_mid_feats = d_dict.get('ref_mid_feats').cuda()
-        src_mid_feats = d_dict.get('src_mid_feats').cuda()
-        feat_2d = d_dict.get('feat_2d').cuda()
+        mat = d_dict.get('gt_corr_score_matrix').unsqueeze(1)
+
         ref_points = d_dict.get('ref_points')
         src_points = d_dict.get('src_points')
         ref_geo_emb, src_geo_emb = self.geometric_embedding(ref_points, src_points)
         ref_voxel_emb = self.voxel_embedding(ref_points)
         src_voxel_emb = self.voxel_embedding(src_points)
-        ref_knn_indices = self.knn_indices(ref_points, 3)
-        src_knn_indices = self.knn_indices(src_points, 3)
-        ref_knn_emb = self.voxel_emb(ref_knn_indices)
-        src_knn_emb = self.voxel_emb(src_knn_indices)
-        ref_knn_feats = self.add_feature_from_indices(ref_feats, ref_knn_indices)
-        src_knn_feats = self.add_feature_from_indices(src_feats, src_knn_indices)
 
         feats = {}
-        feats['ref_feats'] = ref_feats
-        feats['src_feats'] = src_feats
-        feats['ref_mid_feats'] = ref_mid_feats
-        feats['src_mid_feats'] = src_mid_feats
-        feats['feat_2d'] = feat_2d
         feats['ref_geo_emb'] = ref_geo_emb
         feats['src_geo_emb'] = src_geo_emb
         feats['ref_voxel_emb'] = ref_voxel_emb
         feats['src_voxel_emb'] = src_voxel_emb
-        feats['ref_knn_emb'] = ref_knn_emb
-        feats['src_knn_emb'] = src_knn_emb
-        feats['ref_knn_feats'] = ref_knn_feats
-        feats['src_knn_feats'] = src_knn_feats
-        feats['mask'] = mask
-        feats['weighted_mask'] = weighted_mask
 
         t = torch.randint(0, self.diffusion_new.num_timesteps, (mat.shape[0],), device='cuda')
         loss_dict = self.diffusion_new.training_losses(self.net, mat, t, feats)
         loss = loss_dict["loss"].mean()
         return {'loss': loss}
     
-    def sample(self, latent_dict):
-        latent_dict = [latent_dict]
-        d_dict = self.downsample(latent_dict)
-        #mat_T = torch.randn((1, self.ref_sample_num, self.src_sample_num)).cuda()
-        mat_T = torch.randn_like(d_dict.get('gt_corr_score_matrix')).cuda().unsqueeze(1)
-        mask = d_dict.get('init_corr_matrix').cuda()
-        weighted_mask = self.create_weighted_mask(mask, 1.0, 0.1)
-        ref_feats = d_dict.get('ref_feats').cuda()
-        src_feats = d_dict.get('src_feats').cuda()
-        ref_mid_feats = d_dict.get('ref_mid_feats').cuda()
-        src_mid_feats = d_dict.get('src_mid_feats').cuda()
-        ref_points = d_dict.get('ref_points')
-        src_points = d_dict.get('src_points')
+    def sample(self, d_dict):
+
+        mat_T = torch.randn_like(d_dict.get('gt_corr_score_matrix').unsqueeze(0)).cuda().unsqueeze(1)
+
+        ref_points = d_dict.get('ref_points').unsqueeze(0)
+        src_points = d_dict.get('src_points').unsqueeze(0)
         ref_geo_emb, src_geo_emb = self.geometric_embedding(ref_points, src_points)
         ref_voxel_emb = self.voxel_embedding(ref_points)
         src_voxel_emb = self.voxel_embedding(src_points)
-        ref_knn_indices = self.knn_indices(ref_points, 3)
-        src_knn_indices = self.knn_indices(src_points, 3)
-        ref_knn_emb = self.voxel_emb(ref_knn_indices)
-        src_knn_emb = self.voxel_emb(src_knn_indices)
-        ref_knn_feats = self.add_feature_from_indices(ref_feats, ref_knn_indices)
-        src_knn_feats = self.add_feature_from_indices(src_feats, src_knn_indices)
-
-        feat_2d = d_dict.get('feat_2d').cuda()
 
         feats = {}
-        feats['ref_feats'] = ref_feats
-        feats['src_feats'] = src_feats
-        feats['ref_mid_feats'] = ref_mid_feats
-        feats['src_mid_feats'] = src_mid_feats
-        feats['feat_2d'] = feat_2d
         feats['ref_geo_emb'] = ref_geo_emb
         feats['src_geo_emb'] = src_geo_emb
         feats['ref_voxel_emb'] = ref_voxel_emb
         feats['src_voxel_emb'] = src_voxel_emb
-        feats['ref_knn_emb'] = ref_knn_emb
-        feats['src_knn_emb'] = src_knn_emb
-        feats['ref_knn_feats'] = ref_knn_feats
-        feats['src_knn_feats'] = src_knn_feats
-        feats['mask'] = mask
-        feats['weighted_mask'] = weighted_mask
 
         pred_corr_mat = self.diffusion_new.p_sample_loop(
             self.net, mat_T.shape, mat_T, clip_denoised=False, model_kwargs=feats, progress=True, device='cuda'
@@ -318,13 +307,7 @@ class Cordi(Module):
             'pred_corr_1': pred_corr_1,
             'num_corr_0_9': num_corr_0_9,
             'num_corr_0_95': num_corr_0_95,
-            'num_corr_1': num_corr_1,
-            'gt_corr_matrix': d_dict.get('gt_corr_matrix').squeeze(0),
-            'gt_corr_score_matrix': d_dict.get('gt_corr_score_matrix').squeeze(0),
-            'init_corr_matrix': d_dict.get('init_corr_matrix').squeeze(0),
-            'init_corr_score_matrix': d_dict.get('init_corr_score_matrix').squeeze(0),
-            'ref_points': d_dict.get('ref_points').squeeze(0),
-            'src_points': d_dict.get('src_points').squeeze(0),
+            'num_corr_1': num_corr_1
             }
         
 class SinusoidalPositionEmbeddings3D(Module):

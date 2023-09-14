@@ -21,11 +21,9 @@ def grid_subsample(points, lengths, voxel_size, length_ref=None, length_src=None
     """
     s_points, s_lengths = ext_module.grid_subsampling(points, lengths, voxel_size)
     if length_ref is None and length_src is None:
-        s_ref_points = s_points[:s_lengths[0]]
-        s_src_points = s_points[s_lengths[0]:]
-        s_ref_points = sort_pcd_from_min_xyz(s_ref_points.numpy())
-        s_src_points = sort_pcd_from_min_xyz(s_src_points.numpy())
-        s_points = torch.from_numpy(np.concatenate([s_ref_points, s_src_points], axis=0))
+        #s_ref_points = s_points[:s_lengths[0]]
+        #s_src_points = s_points[s_lengths[0]:]
+        #s_points = torch.from_numpy(np.concatenate([s_ref_points, s_src_points], axis=0))
         pass
     elif length_ref is not None and length_src is not None:
         assert length_ref + length_src <= s_points.shape[0]

@@ -86,6 +86,9 @@ class LMODataset(data.Dataset):
         trans = data_dict['trans']
         rgb = data_dict['rgb']
 
+        # randomly permute the point cloud
+        src_pcd = random_permute_pcd(src_pcd)
+        tgt_pcd = random_permute_pcd(tgt_pcd)
         if self.data_augmentation:
             # rotate the point cloud
             euler_ab = np.random.rand(3) * np.pi * 2. / self.rot_factor  # anglez, angley, anglex
@@ -210,9 +213,10 @@ class LMODataset(data.Dataset):
                 #tgt_pcd = sort_pcd_from_center(tgt_pcd)
                 
 
-                src_pcd, tgt_pcd = normalize_points(src_pcd, tgt_pcd, rot, trans)
+                #src_pcd, tgt_pcd = normalize_points(src_pcd, tgt_pcd, rot, trans)
                 #src_pcd = sort_pcd_from_min_xyz(src_pcd)
                 #tgt_pcd = sort_pcd_from_min_xyz(tgt_pcd)
+
 
                 # image processing
                 rgb_img = np.array(Image.open(str(rgb_files[frame_id])))

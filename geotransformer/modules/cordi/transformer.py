@@ -73,7 +73,7 @@ class transformer(Module):
             Linear(768, 256)
         )
         # for new implementation
-        self.n_ref = 39
+        self.n_ref = 38
         self.n_src = 80
         self.d_model = query_dimensions*n_heads
         self.input_proj_ref = Linear(self.n_src, self.d_model)
@@ -90,7 +90,7 @@ class transformer(Module):
             LayerNorm(self.d_model),
             Linear(self.d_model, 256),
             ReLU(),
-            Linear(256, 2)
+            Linear(256, 1)
         )
         self.split = Sequential(
             Linear(1, 256),
@@ -215,6 +215,8 @@ class transformer(Module):
 
         ref_geo_emb = feats['ref_geo_emb']
         src_geo_emb = feats['src_geo_emb']
+        ref_voxel_emb = feats['ref_voxel_emb']
+        src_voxel_emb = feats['src_voxel_emb']
 
         t_emb = self.time_emb(t)
 
@@ -223,13 +225,15 @@ class transformer(Module):
             src_x,
             ref_geo_emb,
             src_geo_emb,
+            ref_voxel_emb,
+            src_voxel_emb,
             t_emb,
         )
-        src_x = src_x.transpose(1, 2)
-        x = torch.mean(torch.stack((ref_x, src_x)), dim=0)
-        x = self.split(x)
-        #x = ref_x.unsqueeze(2).repeat(1, 1, src_x.shape[1], 1) + src_x.unsqueeze(1).repeat(1, ref_x.shape[1], 1, 1)
-        #x = self.final_layer(x)
+        #src_x = src_x.transpose(1, 2)
+        #x = torch.mean(torch.stack((ref_x, src_x)), dim=0)
+        #x = self.split(x)
+        x = ref_x.unsqueeze(2).repeat(1, 1, src_x.shape[1], 1) + src_x.unsqueeze(1).repeat(1, ref_x.shape[1], 1, 1)
+        x = self.final_layer(x)
         x = rearrange(x, 'b h w c -> b c h w')
         return x
 
@@ -450,6 +454,8 @@ class RPEDiT(Module):
             feats1_in,
             geo_emb0,
             geo_emb1,
+            voxel_emb0,
+            voxel_emb1,
             t_emb,
     ):
         shift_msa, scale_msa, gate_msa, shift_mlp, scale_mlp, gate_mlp = self.adaLN_modulation(t_emb).chunk(6, dim=1)
@@ -463,6 +469,8 @@ class RPEDiT(Module):
 
         feats0 = self.input_proj0(feats0_in)
         feats1 = self.input_proj1(feats1_in)
+        feats0 = feats0 + voxel_emb0
+        feats1 = feats1 + voxel_emb1
 
         feats0, feats1 = self.transformer(
             feats0,
@@ -473,10 +481,10 @@ class RPEDiT(Module):
         )
         feats0 = F.normalize(feats0, p=2, dim=1)
         feats1 = F.normalize(feats1, p=2, dim=1)
-        feats0 = self.final_layer0(feats0, t_emb).view(feats0.shape[0], -1, self.n_src, 1)
-        feats1 = self.final_layer1(feats1, t_emb).view(feats1.shape[0], -1, self.n_ref, 1)
-        feats0 = feats0 + feats0_in.unsqueeze(-1)
-        feats1 = feats1 + feats1_in.unsqueeze(-1)
+        #feats0 = self.final_layer0(feats0, t_emb).view(feats0.shape[0], -1, self.n_src, 1)
+        #feats1 = self.final_layer1(feats1, t_emb).view(feats1.shape[0], -1, self.n_ref, 1)
+        #feats0 = feats0 + feats0_in.unsqueeze(-1)
+        #feats1 = feats1 + feats1_in.unsqueeze(-1)
 
         return feats0, feats1
 

@@ -194,24 +194,27 @@ def apply_transform(points: torch.Tensor, transform: torch.Tensor, normals: Opti
     else:
         return points
 
-def get_corr(tgt_pcd, src_pcd, rot, trans, radius):
+def get_corr_indices_from_r(tgt_pcd, src_pcd, transform, radius):
     r"""Find the ground truth correspondences within the matching radius between two point clouds.
     Return correspondence indices [indices in ref_points, indices in src_points]
     """
-    src_t = transformation_pcd(src_pcd, rot, trans)
-    src_tree = cKDTree(src_t)
+    src_pcd_t = apply_transform(src_pcd, transform)
+    src_tree = cKDTree(src_pcd_t)
     indices_list = src_tree.query_ball_point(tgt_pcd, radius)
     corr = np.array(
         [(i, j) for i, indices in enumerate(indices_list) for j in indices],
         dtype=np.int32,
     )
-    coverage = corr.shape[0] / tgt_pcd.shape[0]
-    return corr, coverage
+    
+    return torch.from_numpy(corr).long()
 
 def get_corr_score_matrix(tgt_pcd, src_pcd, transform, sigma=0.3):
     src_pcd_t = apply_transform(src_pcd, transform)
     # Calculate pointwise distances using broadcasting
     distances = torch.cdist(tgt_pcd, src_pcd_t)
+
+    # Normalize distances to the range [0, 1]
+    distances = distances / torch.max(distances)
 
     # Calculate pointwise scores using the Gaussian kernel
     scores = torch.exp(-(distances ** 2) / (2 * sigma ** 2))
@@ -273,6 +276,14 @@ def normalize_points(src, tgt, rot, trans):
     tgt = transformation_pcd(tgt, rot, trans)
 
     return src, tgt
+
+def random_permute_pcd(pcd):
+    r"""Randomly permute a point cloud.
+    Return permuted point cloud
+    """
+    idx = np.random.permutation(pcd.shape[0])
+    pcd = pcd[idx]
+    return pcd
 
 def get_corr_from_matrix_topk(corr_matrix, k):
     r"""Get the top k correspondences from a correspondence matrix.[batch_size, tgt_len, src_len]
@@ -500,19 +511,27 @@ def save_corr_pcd(output_dict):
     line_outlier.colors = o3d.utility.Vector3dVector([[1, 0, 0] for i in range(len(lines))])
     o3d.io.write_line_set("./output/geotransformer.modelnet.rpmnet.stage4.gse.k3.max.oacl.stage2.sinkhorn/result/line_outlier.ply", line_outlier)
 
-def save_corr_pcd_ddpm(output_dict, data_dict, log_dir):
-    tgt_pcd = output_dict['ref_points'].cpu().numpy()
-    src_pcd = output_dict['src_points'].cpu().numpy()
+def save_corr_pcd_ddpm(output_dict, data_dict, log_dir, matching_radius):
+    tgt_pcd = data_dict['ref_points'].cpu()
+    src_pcd = data_dict['src_points'].cpu()
     pred_corr = output_dict['pred_corr']
     tgt_corr_indices = pred_corr[:, 0]
     src_corr_indices = pred_corr[:, 1]
 
-    gt_corr_matrix = output_dict['gt_corr_matrix'].cpu().numpy()
+    #gt_corr_matrix = output_dict['gt_corr_matrix'].cpu().numpy()
 
-    gt_transform = data_dict['transform'].cpu().numpy()
-    shift = np.array([[1, 0, 0, 1],
-                      [0, 1, 0, 1],
-                      [0, 0, 1, 1],
+    gt_transform = data_dict['transform'].cpu()
+    gt_node_corr_indices = get_corr_indices_from_r(tgt_pcd, src_pcd, gt_transform, matching_radius)
+    gt_corr_matrix = torch.zeros(tgt_pcd.shape[0], src_pcd.shape[0])
+    gt_corr_matrix[gt_node_corr_indices[:, 0], gt_node_corr_indices[:, 1]] = 1.0
+
+    tgt_pcd = tgt_pcd.numpy()
+    src_pcd = src_pcd.numpy()
+    gt_corr_matrix = gt_corr_matrix.numpy()
+
+    shift = np.array([[1, 0, 0, 0.15],
+                      [0, 1, 0, 0.15],
+                      [0, 0, 1, 0.15],
                       [0, 0, 0, 1]])
     gt_transform_vis = torch.from_numpy(np.dot(shift, gt_transform))
     src_pcd_t = apply_transform(torch.from_numpy(src_pcd.astype(np.float64)), gt_transform_vis).numpy()
@@ -636,3 +655,4 @@ def statistical_outlier_rm(pcd, num, std=1.0):
     #o3d.io.write_point_cloud("./output/geotransformer.modelnet.rpmnet.stage4.gse.k3.max.oacl.stage2.sinkhorn/result/cl.ply", cl)
     pcd_cl = np.array(cl.points)
     return pcd_cl
+
