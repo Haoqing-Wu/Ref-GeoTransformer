@@ -211,7 +211,7 @@ class Cordi(Module):
 
     def prepare_data(self, data_dict):
         output_dict = {}
-
+        feats = data_dict['features']
         transform = data_dict['transform']
 
         ref_length_c = data_dict['lengths'][-1][0].item()
@@ -227,13 +227,12 @@ class Cordi(Module):
         src_points_sel_c = src_points_c[sel_src_indices]
 
         gt_corr_score_matrix = get_corr_score_matrix(ref_points_sel_c, src_points_sel_c, transform)
-        #gt_node_corr_indices = get_corr_indices_from_r(ref_points_sel_c, src_points_sel_c, transform, self.matching_radius)
-
+     
         output_dict['transform'] = transform
         output_dict['ref_points'] = ref_points_sel_c
         output_dict['src_points'] = src_points_sel_c
-        #output_dict['gt_node_corr_indices'] = gt_node_corr_indices
         output_dict['gt_corr_score_matrix'] = gt_corr_score_matrix
+        #output_dict['rgb'] = data_dict['rgb']
         return output_dict
 
     def batchify_from_list(self, list):
@@ -264,6 +263,7 @@ class Cordi(Module):
         feats['src_geo_emb'] = src_geo_emb
         feats['ref_voxel_emb'] = ref_voxel_emb
         feats['src_voxel_emb'] = src_voxel_emb
+        #feats['feat_2d'] = d_dict.get('feat_2d')
 
         t = torch.randint(0, self.diffusion_new.num_timesteps, (mat.shape[0],), device='cuda')
         loss_dict = self.diffusion_new.training_losses(self.net, mat, t, feats)
@@ -285,6 +285,7 @@ class Cordi(Module):
         feats['src_geo_emb'] = src_geo_emb
         feats['ref_voxel_emb'] = ref_voxel_emb
         feats['src_voxel_emb'] = src_voxel_emb
+        #feats['feat_2d'] = d_dict.get('feat_2d')
 
         pred_corr_mat = self.diffusion_new.p_sample_loop(
             self.net, mat_T.shape, mat_T, clip_denoised=False, model_kwargs=feats, progress=True, device='cuda'

@@ -345,6 +345,7 @@ class IterBasedDDPMTrainer(BaseTrainer):
         for iteration, data_dict in pbar:
             self.inner_iteration = iteration + 1
             fit_data_dict = self.model.prepare_data(data_dict)
+            #fit_data_dict['feat_2d'] = self.dino_model(fit_data_dict['rgb'].cuda().unsqueeze(0))
             fit_data_dict = to_cuda(fit_data_dict)
             self.before_val_step(self.inner_iteration, data_dict)
             timer.add_prepare_time()
@@ -409,6 +410,7 @@ class IterBasedDDPMTrainer(BaseTrainer):
         for iteration, data_dict in pbar:
             self.inner_iteration = iteration + 1
             fit_data_dict = self.model.prepare_data(data_dict)
+            #fit_data_dict['feat_2d'] = self.dino_model(fit_data_dict['rgb'].cuda().unsqueeze(0))
             fit_data_dict = to_cuda(fit_data_dict)
             self.before_val_step(self.inner_iteration, data_dict)
             timer.add_prepare_time()
@@ -483,13 +485,15 @@ class IterBasedDDPMTrainer(BaseTrainer):
         self.optimizer.zero_grad()
         while self.iteration < self.max_iteration:
             batch_latent_data = []
+            self.iteration += 1
             for i in range(self.batch_size):
-                self.iteration += 1
+                
                 data_dict = next(train_loader)
                 fit_data_dict = self.model.prepare_data(data_dict)
                 batch_latent_data.append(fit_data_dict)
             
             batch_latent_data = self.model.batchify_from_list(batch_latent_data)
+            #batch_latent_data['feat_2d'] = self.dino_model(batch_latent_data['rgb'].cuda())
             batch_latent_data = to_cuda(batch_latent_data)
             self.before_train_step(self.iteration, data_dict)
             self.timer.add_prepare_time()

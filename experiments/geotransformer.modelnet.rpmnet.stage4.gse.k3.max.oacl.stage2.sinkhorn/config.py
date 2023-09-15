@@ -32,9 +32,9 @@ ensure_dir(_C.result_dir)
 
 # wandb
 _C.wandb = edict()
-_C.wandb.enable = True
+_C.wandb.enable = False
 _C.wandb.project = "cordi_corr_base"
-_C.wandb.name = "lmA_b20_rpedit_fs_L_vox_notr_8l_sigma_0.3"
+_C.wandb.name = "lm6_b20_rpedit_fs_L_2d_vox_res_8lio_sigma_0.1"
 
 
 # data
@@ -84,11 +84,11 @@ _C.ransac.num_iterations = 1000
 _C.optim = edict()
 _C.optim.lr = 1e-4
 _C.optim.weight_decay = 1e-6
-_C.optim.warmup_steps = 1000
+_C.optim.warmup_steps = 100
 _C.optim.eta_init = 0.1
 _C.optim.eta_min = 0.1
-_C.optim.max_iteration = 1000000
-_C.optim.snapshot_steps = 20000
+_C.optim.max_iteration = 40000
+_C.optim.snapshot_steps = 500
 _C.optim.grad_acc_steps = 1
 
 # model - backbone
@@ -154,11 +154,11 @@ _C.dino.checkpoint_key = "teacher"
 # model - DDPM
 _C.ddpm = edict()
 _C.ddpm.batch_size = 20
-_C.ddpm.num_steps = 400
+_C.ddpm.num_steps = 1000
 _C.ddpm.beta_1 = 1e-4
 _C.ddpm.beta_T = 0.02
 _C.ddpm.sched_mode = 'linear'
-_C.ddpm.ref_sample_num = 38
+_C.ddpm.ref_sample_num = 40
 _C.ddpm.src_sample_num = 80
 _C.ddpm.adaptive_size = False
 _C.ddpm.size_factor = 0.8

@@ -70,10 +70,10 @@ class transformer(Module):
         )
         self.feat_2d_mlp = Sequential(
             LayerNorm(768),
-            Linear(768, 256)
+            Linear(768, 512)
         )
         # for new implementation
-        self.n_ref = 38
+        self.n_ref = 40
         self.n_src = 80
         self.d_model = query_dimensions*n_heads
         self.input_proj_ref = Linear(self.n_src, self.d_model)
@@ -148,65 +148,6 @@ class transformer(Module):
         if pooling == 'max':
             feat = torch.max(feat, dim=1)[0]
         return feat
-        
-
-    def _forward(self, x_t, t, feats):
-
-        feat0 = feats.get('ref_feats')
-        feat1 = feats.get('src_feats')
-        #feat0 = feats.get('ref_knn_feats')
-        #feat1 = feats.get('src_knn_feats')
-
-        feat0_dist_emb = feats['ref_geo_emb']
-        feat1_dist_emb = feats['src_geo_emb']
-        dist_emb = self.feature_fusion_add(feat0_dist_emb, feat1_dist_emb)
-        dist_emb = torch.reshape(dist_emb, (dist_emb.shape[0], -1, dist_emb.shape[-1]))
-
-        feat0_voxel_emb = feats['ref_voxel_emb']
-        feat1_voxel_emb = feats['src_voxel_emb']
-        voxel_emb = self.feature_fusion_add(feat0_voxel_emb, feat1_voxel_emb)
-        voxel_emb = torch.reshape(voxel_emb, (voxel_emb.shape[0], -1, voxel_emb.shape[-1]))
-
-        feat0_knn_emb = feats['ref_knn_emb']
-        feat1_knn_emb = feats['src_knn_emb']
-        knn_emb = self.feature_fusion_cat(feat0_knn_emb, feat1_knn_emb)
-        knn_emb = torch.reshape(knn_emb, (knn_emb.shape[0], -1, knn_emb.shape[-1]))
-
-        feat_2d = feats.get('feat_2d')
-        c_2d = self.feat_2d_mlp(feat_2d)
-
-        mid_feats0 = feats.get('ref_mid_feats')
-        mid_feats1 = feats.get('src_mid_feats')
-        mid_ctxs = self.mid_features_fusion(mid_feats0, mid_feats1)
-
-        mask = feats.get('mask')
-        sel_feat0_indices, sel_feat1_indices = self.get_sel_indices_from_mask(mask)
-        feat0_global = self.feature_pooling_from_indices(feat0, sel_feat0_indices, pooling='mean')
-        feat1_global = self.feature_pooling_from_indices(feat1, sel_feat1_indices, pooling='mean')
-        #feat0 = torch.cat([feat0, feat0_global.unsqueeze(1).repeat(1, feat0.shape[1], 1)], dim=-1)
-        #feat1 = torch.cat([feat1, feat1_global.unsqueeze(1).repeat(1, feat1.shape[1], 1)], dim=-1)
-
-        #ctx = mid_ctxs[0]
-        ctx = self.feature_fusion_cat(feat0, feat1)
-        #ctx = mask.unsqueeze(-1) * ctx
-        ctx = torch.reshape(ctx, (ctx.shape[0], -1, ctx.shape[-1]))
-
-        x = x_t.squeeze(1).unsqueeze(-1)
-        x = x.repeat(1, 1, 1, self.hidden_dim)
-        x = torch.reshape(x, (x.shape[0], -1, x.shape[-1]))
-        #x = x + dist_emb + ctx
-        t = self.time_emb(t)
-        #c = t + c_2d
-        x = x + ctx
-        for i in range (self.n_layers):
-            
-            #x, _ = self.feature_cross_attention[i](x, ctx)
-            x = self.DiT_blocks[i](x, t)
-        x = self.output_mlp(x, t)
-        #x = x[:, :-1, :]
-        x = torch.reshape(x, (x_t.shape[0], x_t.shape[2], x_t.shape[3], -1))
-        x = rearrange(x, 'b h w c -> b c h w')
-        return x
 
     def forward(self, x_t, t, feats):
         x = x_t.squeeze(1)
@@ -217,8 +158,10 @@ class transformer(Module):
         src_geo_emb = feats['src_geo_emb']
         ref_voxel_emb = feats['ref_voxel_emb']
         src_voxel_emb = feats['src_voxel_emb']
-
+        #feat_2d = feats['feat_2d']
+        #feat_2d = self.feat_2d_mlp(feat_2d)
         t_emb = self.time_emb(t)
+        c = t_emb
 
         ref_x, src_x = self.transformer(
             ref_x,
@@ -227,13 +170,13 @@ class transformer(Module):
             src_geo_emb,
             ref_voxel_emb,
             src_voxel_emb,
-            t_emb,
+            c,
         )
-        #src_x = src_x.transpose(1, 2)
-        #x = torch.mean(torch.stack((ref_x, src_x)), dim=0)
+        src_x = src_x.transpose(1, 2)
+        x = torch.mean(torch.stack((ref_x, src_x)), dim=0)
         #x = self.split(x)
-        x = ref_x.unsqueeze(2).repeat(1, 1, src_x.shape[1], 1) + src_x.unsqueeze(1).repeat(1, ref_x.shape[1], 1, 1)
-        x = self.final_layer(x)
+        #x = ref_x.unsqueeze(2).repeat(1, 1, src_x.shape[1], 1) + src_x.unsqueeze(1).repeat(1, ref_x.shape[1], 1, 1)
+        #x = self.final_layer(x)
         x = rearrange(x, 'b h w c -> b c h w')
         return x
 
@@ -383,18 +326,14 @@ class RPEConditionalTransformer(Module):
     ):
         super(RPEConditionalTransformer, self).__init__()
         self.blocks = blocks
-        layers0 = []
-        layers1 = []
+        layers = []
         for block in self.blocks:
             _check_block_type(block)
             if block == 'self':
-                layers0.append(RPETransformerLayer(d_model, num_heads, dropout=dropout, activation_fn=activation_fn))
-                layers1.append(RPETransformerLayer(d_model, num_heads, dropout=dropout, activation_fn=activation_fn))
+                layers.append(RPETransformerLayer(d_model, num_heads, dropout=dropout, activation_fn=activation_fn))
             else:
-                layers0.append(TransformerLayer(d_model, num_heads, dropout=dropout, activation_fn=activation_fn))
-                layers1.append(TransformerLayer(d_model, num_heads, dropout=dropout, activation_fn=activation_fn))
-        self.layers0 = ModuleList(layers0)
-        self.layers1 = ModuleList(layers1)
+                layers.append(TransformerLayer(d_model, num_heads, dropout=dropout, activation_fn=activation_fn))
+        self.layers = ModuleList(layers)
         self.return_attention_scores = return_attention_scores
         self.parallel = parallel
 
@@ -403,17 +342,17 @@ class RPEConditionalTransformer(Module):
         attention_scores = []
         for i, block in enumerate(self.blocks):
             if block == 'self':
-                feats0, scores0 = self.layers0[i](feats0, feats0, embeddings0, adaLN, memory_masks=masks0)
-                feats1, scores1 = self.layers1[i](feats1, feats1, embeddings1, adaLN, memory_masks=masks1)
+                feats0, scores0 = self.layers[i](feats0, feats0, embeddings0, adaLN, memory_masks=masks0)
+                feats1, scores1 = self.layers[i](feats1, feats1, embeddings1, adaLN, memory_masks=masks1)
             else:
                 if self.parallel:
-                    new_feats0, scores0 = self.layers0[i](feats0, feats1, memory_masks=masks1)
-                    new_feats1, scores1 = self.layers1[i](feats1, feats0, memory_masks=masks0)
+                    new_feats0, scores0 = self.layers[i](feats0, feats1, memory_masks=masks1)
+                    new_feats1, scores1 = self.layers[i](feats1, feats0, memory_masks=masks0)
                     feats0 = new_feats0
                     feats1 = new_feats1
                 else:
-                    feats0, scores0 = self.layers0[i](feats0, feats1, memory_masks=masks1)
-                    feats1, scores1 = self.layers1[i](feats1, feats0, memory_masks=masks0)
+                    feats0, scores0 = self.layers[i](feats0, feats1, memory_masks=masks1)
+                    feats1, scores1 = self.layers[i](feats1, feats0, memory_masks=masks0)
 
             if self.return_attention_scores:
                 attention_scores.append([scores0, scores1])
@@ -456,9 +395,9 @@ class RPEDiT(Module):
             geo_emb1,
             voxel_emb0,
             voxel_emb1,
-            t_emb,
+            c,
     ):
-        shift_msa, scale_msa, gate_msa, shift_mlp, scale_mlp, gate_mlp = self.adaLN_modulation(t_emb).chunk(6, dim=1)
+        shift_msa, scale_msa, gate_msa, shift_mlp, scale_mlp, gate_mlp = self.adaLN_modulation(c).chunk(6, dim=1)
         adaLN = {}
         adaLN['shift_msa'] = shift_msa
         adaLN['scale_msa'] = scale_msa
@@ -481,10 +420,10 @@ class RPEDiT(Module):
         )
         feats0 = F.normalize(feats0, p=2, dim=1)
         feats1 = F.normalize(feats1, p=2, dim=1)
-        #feats0 = self.final_layer0(feats0, t_emb).view(feats0.shape[0], -1, self.n_src, 1)
-        #feats1 = self.final_layer1(feats1, t_emb).view(feats1.shape[0], -1, self.n_ref, 1)
-        #feats0 = feats0 + feats0_in.unsqueeze(-1)
-        #feats1 = feats1 + feats1_in.unsqueeze(-1)
+        feats0 = self.final_layer0(feats0, c).view(feats0.shape[0], -1, self.n_src, 1)
+        feats1 = self.final_layer1(feats1, c).view(feats1.shape[0], -1, self.n_ref, 1)
+        feats0 = feats0 + feats0_in.unsqueeze(-1)
+        feats1 = feats1 + feats1_in.unsqueeze(-1)
 
         return feats0, feats1
 
