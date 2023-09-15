@@ -278,7 +278,10 @@ class GaussianDiffusion:
         assert t.shape == (B,)
         model_output = model(x, t, **model_kwargs)
         if isinstance(model_output, tuple):
-            model_output, extra = model_output
+            #model_output, extra = model_output
+            model_output0, model_output1 = model_output
+            extra = model_output1
+            model_output = th.mean(th.stack((model_output0, model_output1)), dim=0)
         else:
             extra = None
 
@@ -744,7 +747,7 @@ class GaussianDiffusion:
             if self.loss_type == LossType.RESCALED_KL:
                 terms["loss"] *= self.num_timesteps
         elif self.loss_type == LossType.MSE or self.loss_type == LossType.RESCALED_MSE:
-            model_output = model(x_t, t, **model_kwargs)
+            model_output0, model_output1 = model(x_t, t, **model_kwargs)
 
             if self.model_var_type in [
                 ModelVarType.LEARNED,
@@ -775,12 +778,9 @@ class GaussianDiffusion:
                 ModelMeanType.START_X: x_start,
                 ModelMeanType.EPSILON: noise,
             }[self.model_mean_type]
-            assert model_output.shape == target.shape == x_start.shape
+            assert model_output0.shape == target.shape == x_start.shape
 
-            # get weighted mask
-            #mask = model_kwargs.get("weighted_mask").unsqueeze(1)
-
-            terms["mse"] = mean_flat((target - model_output) ** 2)
+            terms["mse"] = mean_flat((target - model_output0) ** 2) + mean_flat((target - model_output1) ** 2)
             if "vb" in terms:
                 terms["loss"] = terms["mse"] + terms["vb"]
             else:

@@ -173,12 +173,13 @@ class transformer(Module):
             c,
         )
         src_x = src_x.transpose(1, 2)
-        x = torch.mean(torch.stack((ref_x, src_x)), dim=0)
+        #x = torch.mean(torch.stack((ref_x, src_x)), dim=0)
         #x = self.split(x)
         #x = ref_x.unsqueeze(2).repeat(1, 1, src_x.shape[1], 1) + src_x.unsqueeze(1).repeat(1, ref_x.shape[1], 1, 1)
         #x = self.final_layer(x)
-        x = rearrange(x, 'b h w c -> b c h w')
-        return x
+        ref_x = rearrange(ref_x, 'b h w c -> b c h w')
+        src_x = rearrange(src_x, 'b h w c -> b c h w')
+        return ref_x, src_x
 
 
 
@@ -408,8 +409,8 @@ class RPEDiT(Module):
 
         feats0 = self.input_proj0(feats0_in)
         feats1 = self.input_proj1(feats1_in)
-        feats0 = feats0 + voxel_emb0
-        feats1 = feats1 + voxel_emb1
+        feats0 = feats0
+        feats1 = feats1
 
         feats0, feats1 = self.transformer(
             feats0,

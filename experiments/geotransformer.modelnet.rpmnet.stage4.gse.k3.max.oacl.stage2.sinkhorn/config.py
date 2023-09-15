@@ -32,9 +32,9 @@ ensure_dir(_C.result_dir)
 
 # wandb
 _C.wandb = edict()
-_C.wandb.enable = False
+_C.wandb.enable = True
 _C.wandb.project = "cordi_corr_base"
-_C.wandb.name = "lm6_b20_rpedit_fs_L_2d_vox_res_8lio_sigma_0.1"
+_C.wandb.name = "lm6_b20_rpedit_fs_2los_L_res_8l_sigma_0.3"
 
 
 # data
@@ -84,10 +84,10 @@ _C.ransac.num_iterations = 1000
 _C.optim = edict()
 _C.optim.lr = 1e-4
 _C.optim.weight_decay = 1e-6
-_C.optim.warmup_steps = 100
+_C.optim.warmup_steps = 1000
 _C.optim.eta_init = 0.1
 _C.optim.eta_min = 0.1
-_C.optim.max_iteration = 40000
+_C.optim.max_iteration = 60000
 _C.optim.snapshot_steps = 500
 _C.optim.grad_acc_steps = 1
 
