@@ -76,8 +76,8 @@ class transformer(Module):
         self.n_ref = 40
         self.n_src = 80
         self.d_model = query_dimensions*n_heads
-        self.input_proj_ref = Linear(self.n_src, self.d_model)
-        self.input_proj_src = Linear(self.n_ref, self.d_model)
+        #self.input_proj_ref = Linear(self.n_src, self.d_model)
+        #self.input_proj_src = Linear(self.n_ref, self.d_model)
         self.transformer = RPEDiT(
             hidden_dim=self.d_model,
             num_heads=n_heads,
@@ -162,7 +162,11 @@ class transformer(Module):
         #feat_2d = self.feat_2d_mlp(feat_2d)
         t_emb = self.time_emb(t)
         c = t_emb
-
+        # pad ref_x last dimension to 128
+        ref_pad = torch.zeros(ref_x.shape[0], ref_x.shape[1], 256-ref_x.shape[2]).cuda()
+        ref_x = torch.cat([ref_x, ref_pad], dim=-1)
+        src_pad = torch.zeros(src_x.shape[0], src_x.shape[1], 256-src_x.shape[2]).cuda()
+        src_x = torch.cat([src_x, src_pad], dim=-1)
         ref_x, src_x = self.transformer(
             ref_x,
             src_x,
@@ -376,8 +380,6 @@ class RPEDiT(Module):
         super(RPEDiT, self).__init__()
         self.n_ref = n_ref
         self.n_src = n_src
-        self.input_proj0 = Linear(n_src, hidden_dim)
-        self.input_proj1 = Linear(n_ref, hidden_dim)
         self.transformer = RPEConditionalTransformer(
             blocks, hidden_dim, num_heads, dropout=dropout, activation_fn=activation_fn
         )
@@ -390,8 +392,8 @@ class RPEDiT(Module):
 
     def forward(
             self,
-            feats0_in,
-            feats1_in,
+            feats0,
+            feats1,
             geo_emb0,
             geo_emb1,
             voxel_emb0,
@@ -407,10 +409,6 @@ class RPEDiT(Module):
         adaLN['scale_mlp'] = scale_mlp
         adaLN['gate_mlp'] = gate_mlp
 
-        feats0 = self.input_proj0(feats0_in)
-        feats1 = self.input_proj1(feats1_in)
-        feats0 = feats0
-        feats1 = feats1
 
         feats0, feats1 = self.transformer(
             feats0,
@@ -423,8 +421,6 @@ class RPEDiT(Module):
         feats1 = F.normalize(feats1, p=2, dim=1)
         feats0 = self.final_layer0(feats0, c).view(feats0.shape[0], -1, self.n_src, 1)
         feats1 = self.final_layer1(feats1, c).view(feats1.shape[0], -1, self.n_ref, 1)
-        feats0 = feats0 + feats0_in.unsqueeze(-1)
-        feats1 = feats1 + feats1_in.unsqueeze(-1)
 
         return feats0, feats1
 
