@@ -29,14 +29,14 @@ def train_valid_data_loader(cfg, distributed):
     # )
     dataset = LMODataset(
         data_folder='./data/',
-        reload_data=False,
+        reload_data=True,
         data_augmentation=True,
         rotated=False,
         rot_factor=1.0,
         augment_noise=0.0005,
         points_limit=1000,
         mode='train',
-        overfit=6,
+        overfit=None,
     )
     train_dataset, valid_dataset = torch.utils.data.random_split(
         dataset, 
@@ -95,14 +95,14 @@ def train_valid_data_loader(cfg, distributed):
     # )
     test_dataset = LMODataset(
         data_folder='./data/',
-        reload_data=False,
+        reload_data=True,
         data_augmentation=False,
         rotated=False,
         rot_factor=1.0,
         augment_noise=0.0005,
         points_limit=1000,
         mode='test',
-        overfit=6,
+        overfit=None,
     )
     test_loader = build_dataloader_stack_mode(
         test_dataset,

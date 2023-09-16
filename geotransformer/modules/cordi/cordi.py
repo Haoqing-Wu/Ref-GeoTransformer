@@ -8,6 +8,7 @@ from geotransformer.datasets.registration.linemod.bop_utils import *
 from geotransformer.modules.diffusion import create_diffusion
 from geotransformer.modules.geotransformer.geotransformer import GeometricStructureEmbedding
 from positional_encodings.torch_encodings import PositionalEncoding1D
+from backbone import KPConvFPN
 
 class Cordi(Module):
 
@@ -72,6 +73,15 @@ class Cordi(Module):
             nn.Linear(2048, 256)
         )
         self.voxel_emb = SinusoidalPositionEmbeddings3D(512)
+        self.kpConv = KPConvFPN(
+            cfg.backbone.input_dim,
+            cfg.backbone.output_dim,
+            cfg.backbone.init_dim,
+            cfg.backbone.kernel_size,
+            cfg.backbone.init_radius,
+            cfg.backbone.init_sigma,
+            cfg.backbone.group_norm,
+        )
 
     def downsample(self, batch_latent_data, slim=False):
         b_ref_points_sampled = []
@@ -219,19 +229,21 @@ class Cordi(Module):
         ref_points_c = points_c[:ref_length_c]
         src_points_c = points_c[ref_length_c:]
         
-        sel_ref_indices = torch.randperm(ref_points_c.shape[0])[:self.ref_sample_num]
-        sel_ref_indices = torch.sort(sel_ref_indices)[0]
-        sel_src_indices = torch.randperm(src_points_c.shape[0])[:self.src_sample_num]
-        sel_src_indices = torch.sort(sel_src_indices)[0]
-        ref_points_sel_c = ref_points_c[sel_ref_indices]
-        src_points_sel_c = src_points_c[sel_src_indices]
+        feats_list = self.kpConv(feats, data_dict)
 
-        gt_corr_score_matrix = get_corr_score_matrix(ref_points_sel_c, src_points_sel_c, transform)
+        feats_c = feats_list[-1]
+        ref_feats_c = feats_c[:ref_length_c]
+        src_feats_c = feats_c[ref_length_c:]
+        
+
+        gt_corr_score_matrix = get_corr_score_matrix(ref_points_c, src_points_c, transform)
      
-        output_dict['transform'] = transform
-        output_dict['ref_points'] = ref_points_sel_c
-        output_dict['src_points'] = src_points_sel_c
-        output_dict['gt_corr_score_matrix'] = gt_corr_score_matrix
+        output_dict['transform'] = transform.unsqueeze(0)
+        output_dict['ref_points'] = ref_points_c.unsqueeze(0)
+        output_dict['src_points'] = src_points_c.unsqueeze(0)
+        output_dict['ref_feats'] = ref_feats_c.unsqueeze(0)
+        output_dict['src_feats'] = src_feats_c.unsqueeze(0)
+        output_dict['gt_corr_score_matrix'] = gt_corr_score_matrix.unsqueeze(0)
         #output_dict['rgb'] = data_dict['rgb']
         return output_dict
 
@@ -249,21 +261,32 @@ class Cordi(Module):
             
 
     def get_loss(self, d_dict):
-    
-        mat = d_dict.get('gt_corr_score_matrix').unsqueeze(1)
 
-        ref_points = d_dict.get('ref_points')
-        src_points = d_dict.get('src_points')
-        ref_geo_emb, src_geo_emb = self.geometric_embedding(ref_points, src_points)
-        ref_voxel_emb = self.voxel_embedding(ref_points)
-        src_voxel_emb = self.voxel_embedding(src_points)
+        feats = d_dict['features']
+        transform = d_dict['transform']
+
+        ref_length_c = d_dict['lengths'][-1][0].item()
+        points_c = d_dict['points'][-1]
+        ref_points_c = points_c[:ref_length_c]
+        src_points_c = points_c[ref_length_c:]
+        
+        feats_list = self.kpConv(feats, d_dict)
+
+        feats_c = feats_list[-1]
+        ref_feats_c = feats_c[:ref_length_c]
+        src_feats_c = feats_c[ref_length_c:]
+        
+
+        mat = get_corr_score_matrix(ref_points_c, src_points_c, transform).unsqueeze(0).unsqueeze(1)
+
+        ref_geo_emb, src_geo_emb = self.geometric_embedding(ref_points_c.unsqueeze(0), src_points_c.unsqueeze(0))
 
         feats = {}
+        feats['ref_feats'] = ref_feats_c.unsqueeze(0)
+        feats['src_feats'] = src_feats_c.unsqueeze(0)
         feats['ref_geo_emb'] = ref_geo_emb
         feats['src_geo_emb'] = src_geo_emb
-        feats['ref_voxel_emb'] = ref_voxel_emb
-        feats['src_voxel_emb'] = src_voxel_emb
-        #feats['feat_2d'] = d_dict.get('feat_2d')
+
 
         t = torch.randint(0, self.diffusion_new.num_timesteps, (mat.shape[0],), device='cuda')
         loss_dict = self.diffusion_new.training_losses(self.net, mat, t, feats)
@@ -271,21 +294,32 @@ class Cordi(Module):
         return {'loss': loss}
     
     def sample(self, d_dict):
+        feats = d_dict['features']
+        transform = d_dict['transform']
 
-        mat_T = torch.randn_like(d_dict.get('gt_corr_score_matrix').unsqueeze(0)).cuda().unsqueeze(1)
+        ref_length_c = d_dict['lengths'][-1][0].item()
+        points_c = d_dict['points'][-1]
+        ref_points_c = points_c[:ref_length_c]
+        src_points_c = points_c[ref_length_c:]
+        
+        feats_list = self.kpConv(feats, d_dict)
 
-        ref_points = d_dict.get('ref_points').unsqueeze(0)
-        src_points = d_dict.get('src_points').unsqueeze(0)
-        ref_geo_emb, src_geo_emb = self.geometric_embedding(ref_points, src_points)
-        ref_voxel_emb = self.voxel_embedding(ref_points)
-        src_voxel_emb = self.voxel_embedding(src_points)
+        feats_c = feats_list[-1]
+        ref_feats_c = feats_c[:ref_length_c]
+        src_feats_c = feats_c[ref_length_c:]
+        
+        mat = get_corr_score_matrix(ref_points_c, src_points_c, transform).unsqueeze(0)
+
+        mat_T = torch.randn_like(mat).cuda().unsqueeze(1)
+
+        ref_geo_emb, src_geo_emb = self.geometric_embedding(ref_points_c.unsqueeze(0), src_points_c.unsqueeze(0))
 
         feats = {}
+        feats['ref_feats'] = ref_feats_c.unsqueeze(0)
+        feats['src_feats'] = src_feats_c.unsqueeze(0)
         feats['ref_geo_emb'] = ref_geo_emb
         feats['src_geo_emb'] = src_geo_emb
-        feats['ref_voxel_emb'] = ref_voxel_emb
-        feats['src_voxel_emb'] = src_voxel_emb
-        #feats['feat_2d'] = d_dict.get('feat_2d')
+
 
         pred_corr_mat = self.diffusion_new.p_sample_loop(
             self.net, mat_T.shape, mat_T, clip_denoised=False, model_kwargs=feats, progress=True, device='cuda'
@@ -299,6 +333,7 @@ class Cordi(Module):
         pred_corr_0_95, num_corr_0_95 = get_corr_from_matrix_gt(pred_corr_mat, 0.95, 1.05)
         pred_corr_1, num_corr_1 = get_corr_from_matrix_gt(pred_corr_mat, 0.98, 1.02)
         return {
+            'gt_corr_score_matrix': mat.squeeze(0).cpu(),
             'pred_corr_mat': pred_corr_mat,
             'pred_corr': pred_corr,
             'pred_corr_1_2': pred_corr_1_2,

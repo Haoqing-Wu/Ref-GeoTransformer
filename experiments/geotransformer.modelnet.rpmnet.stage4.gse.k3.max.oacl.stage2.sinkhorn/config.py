@@ -34,7 +34,7 @@ ensure_dir(_C.result_dir)
 _C.wandb = edict()
 _C.wandb.enable = True
 _C.wandb.project = "cordi_corr_base"
-_C.wandb.name = "lm6_b20_rpedit_fs_2los_pad_L_8l_sigma_0.3"
+_C.wandb.name = "lmA_b20_rpedit_fs_kpc_L_16l_sigma_0.3"
 
 
 # data
@@ -87,8 +87,8 @@ _C.optim.weight_decay = 1e-6
 _C.optim.warmup_steps = 1000
 _C.optim.eta_init = 0.1
 _C.optim.eta_min = 0.1
-_C.optim.max_iteration = 60000
-_C.optim.snapshot_steps = 500
+_C.optim.max_iteration = 1000000
+_C.optim.snapshot_steps = 10000
 _C.optim.grad_acc_steps = 1
 
 # model - backbone
@@ -165,14 +165,14 @@ _C.ddpm.size_factor = 0.8
 _C.ddpm.sample_topk = 32
 _C.ddpm.sample_topk_1_2 = 16
 _C.ddpm.sample_topk_1_4 = 8
-_C.ddpm.time_emb_dim = 256
-_C.ddpm.geo_embedding_dim = 256
+_C.ddpm.time_emb_dim = 512
+_C.ddpm.geo_embedding_dim = 512
 _C.ddpm.use_ddpm_reference = False
 
 # model - DDPM - Transformer
 _C.ddpm_transformer = edict()
 _C.ddpm_transformer.n_layers = 8
-_C.ddpm_transformer.n_heads = 4
+_C.ddpm_transformer.n_heads = 8
 _C.ddpm_transformer.query_dimensions = 64
 _C.ddpm_transformer.value_dimensions = 64
 _C.ddpm_transformer.feed_forward_dimensions = 2048

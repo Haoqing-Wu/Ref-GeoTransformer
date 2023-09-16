@@ -344,12 +344,10 @@ class IterBasedDDPMTrainer(BaseTrainer):
         pbar = tqdm.tqdm(enumerate(self.val_loader), total=total_iterations)
         for iteration, data_dict in pbar:
             self.inner_iteration = iteration + 1
-            fit_data_dict = self.model.prepare_data(data_dict)
-            #fit_data_dict['feat_2d'] = self.dino_model(fit_data_dict['rgb'].cuda().unsqueeze(0))
-            fit_data_dict = to_cuda(fit_data_dict)
+            data_dict = to_cuda(data_dict)
             self.before_val_step(self.inner_iteration, data_dict)
             timer.add_prepare_time()
-            output_dict, result_dict = self.val_step(self.inner_iteration, fit_data_dict)
+            output_dict, result_dict = self.val_step(self.inner_iteration, data_dict)
             timer.add_process_time()
             self.after_val_step(self.inner_iteration, data_dict, output_dict, result_dict)
             result_dict = self.release_tensors(result_dict)
@@ -365,10 +363,10 @@ class IterBasedDDPMTrainer(BaseTrainer):
             if iteration == self.val_iters - 1:
                 # save the point cloud and corresponding prediction
                 log_dir = self.result_dir + "/val_"
-                save_corr_pcd_ddpm(output_dict, fit_data_dict, log_dir, self.matching_radius)
+                save_corr_pcd_ddpm(output_dict, data_dict, log_dir, self.matching_radius)
 
                 vis_pred_corr_mat = output_dict['pred_corr_mat'].squeeze(0).cpu().numpy()
-                vis_gt_corr_score_mat = fit_data_dict['gt_corr_score_matrix'].cpu().numpy()  
+                vis_gt_corr_score_mat = output_dict['gt_corr_score_matrix'].cpu().numpy()  
 
                 plt.imshow(vis_pred_corr_mat, cmap='coolwarm')
                 plt.savefig(self.result_dir + '/val_pred_corr_mat.png', bbox_inches='tight')
@@ -409,12 +407,10 @@ class IterBasedDDPMTrainer(BaseTrainer):
         pbar = tqdm.tqdm(enumerate(self.test_loader), total=total_iterations)
         for iteration, data_dict in pbar:
             self.inner_iteration = iteration + 1
-            fit_data_dict = self.model.prepare_data(data_dict)
-            #fit_data_dict['feat_2d'] = self.dino_model(fit_data_dict['rgb'].cuda().unsqueeze(0))
-            fit_data_dict = to_cuda(fit_data_dict)
+            data_dict = to_cuda(data_dict)
             self.before_val_step(self.inner_iteration, data_dict)
             timer.add_prepare_time()
-            output_dict, result_dict = self.val_step(self.inner_iteration, fit_data_dict)
+            output_dict, result_dict = self.val_step(self.inner_iteration, data_dict)
             timer.add_process_time()
             self.after_val_step(self.inner_iteration, data_dict, output_dict, result_dict)
             result_dict = self.release_tensors(result_dict)
@@ -430,10 +426,10 @@ class IterBasedDDPMTrainer(BaseTrainer):
             if iteration == self.test_iters - 1:
                 # save the point cloud and corresponding prediction
                 log_dir = self.result_dir + "/test_"
-                save_corr_pcd_ddpm(output_dict, fit_data_dict, log_dir, self.matching_radius)
+                save_corr_pcd_ddpm(output_dict, data_dict, log_dir, self.matching_radius)
 
                 vis_pred_corr_mat = output_dict['pred_corr_mat'].squeeze(0).cpu().numpy()
-                vis_gt_corr_score_mat = fit_data_dict['gt_corr_score_matrix'].cpu().numpy()
+                vis_gt_corr_score_mat = output_dict['gt_corr_score_matrix'].cpu().numpy()
 
                 plt.imshow(vis_pred_corr_mat, cmap='coolwarm')
                 plt.savefig(self.result_dir + '/test_pred_corr_mat.png', bbox_inches='tight')
@@ -484,21 +480,16 @@ class IterBasedDDPMTrainer(BaseTrainer):
         self.before_train()
         self.optimizer.zero_grad()
         while self.iteration < self.max_iteration:
-            batch_latent_data = []
             self.iteration += 1
-            for i in range(self.batch_size):
                 
-                data_dict = next(train_loader)
-                fit_data_dict = self.model.prepare_data(data_dict)
-                batch_latent_data.append(fit_data_dict)
+            data_dict = next(train_loader)
             
-            batch_latent_data = self.model.batchify_from_list(batch_latent_data)
-            #batch_latent_data['feat_2d'] = self.dino_model(batch_latent_data['rgb'].cuda())
-            batch_latent_data = to_cuda(batch_latent_data)
+            data_dict = to_cuda(data_dict)
+            
             self.before_train_step(self.iteration, data_dict)
             self.timer.add_prepare_time()
             # forward
-            result_dict = self.train_step(self.iteration, batch_latent_data)
+            result_dict = self.train_step(self.iteration, data_dict)
             # backward & optimization
             result_dict['loss'].backward()
             self.after_backward(self.iteration, data_dict, result_dict)

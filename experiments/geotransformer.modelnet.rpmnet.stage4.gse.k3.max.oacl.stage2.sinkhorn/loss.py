@@ -200,8 +200,11 @@ class DDPMEvaluator(nn.Module):
     @torch.no_grad()
     def evaluate_coarse(self, output_dict, data_dict):  
         gt_transform = data_dict['transform'].cpu()
-        ref_points = data_dict['ref_points'].cpu()
-        src_points = data_dict['src_points'].cpu()
+        points = data_dict['points'][-1].cpu()
+        ref_length_c = data_dict['lengths'][-1][0].item()
+        ref_points = points[:ref_length_c]
+        src_points = points[ref_length_c:]
+
         gt_node_corr_indices = get_corr_indices_from_r(ref_points, src_points, gt_transform, self.matching_radius)
 
         gt_corr_matrix = torch.zeros(ref_points.shape[0], src_points.shape[0])

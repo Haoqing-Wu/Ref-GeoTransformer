@@ -52,16 +52,8 @@ class transformer(Module):
         self.DiT_blocks = ModuleList([
             DiTBlock(query_dimensions*n_heads, n_heads, mlp_ratio=4.0) for _ in range(n_layers)
         ])
-        self.feat0_proj = Sequential(
-            Linear(self.half_dim, self.half_dim),
-            ReLU(),
-            Linear(self.half_dim, self.half_dim)
-        )
-        self.feat1_proj = Sequential(
-            Linear(self.half_dim, self.half_dim),
-            ReLU(),
-            Linear(self.half_dim, self.half_dim)
-        )
+        self.feat0_proj = Linear(512, 256)
+        self.feat1_proj = Linear(512, 256)
         self.time_emb = Sequential(
             SinusoidalPositionEmbeddings(time_emb_dim),
             Linear(time_emb_dim, n_heads*query_dimensions),
@@ -73,30 +65,19 @@ class transformer(Module):
             Linear(768, 512)
         )
         # for new implementation
-        self.n_ref = 40
-        self.n_src = 80
         self.d_model = query_dimensions*n_heads
-        #self.input_proj_ref = Linear(self.n_src, self.d_model)
-        #self.input_proj_src = Linear(self.n_ref, self.d_model)
         self.transformer = RPEDiT(
             hidden_dim=self.d_model,
             num_heads=n_heads,
-            blocks=['self', 'cross', 'self', 'cross', 'self', 'cross', 'self', 'cross'],
-            n_ref=self.n_ref,
-            n_src=self.n_src
+            blocks=['self', 'cross', 'self', 'cross', 'self', 'cross', 'self', 'cross', 'self', 'cross', 'self', 'cross', 'self', 'cross', 'self', 'cross'],
         )
-        #self.final_layer = Finallayer(self.d_model, 2)
         self.final_layer = Sequential(
             LayerNorm(self.d_model),
             Linear(self.d_model, 256),
             ReLU(),
             Linear(256, 1)
         )
-        self.split = Sequential(
-            Linear(1, 256),
-            ReLU(),
-            Linear(256, 2)
-        )
+
         
 
     def feature_fusion_cat(self, feat0, feat1):
@@ -153,37 +134,34 @@ class transformer(Module):
         x = x_t.squeeze(1)
         ref_x = x
         src_x = x.transpose(1, 2)
+        ref_len = ref_x.shape[1]
+        src_len = src_x.shape[1]
 
         ref_geo_emb = feats['ref_geo_emb']
         src_geo_emb = feats['src_geo_emb']
-        ref_voxel_emb = feats['ref_voxel_emb']
-        src_voxel_emb = feats['src_voxel_emb']
-        #feat_2d = feats['feat_2d']
-        #feat_2d = self.feat_2d_mlp(feat_2d)
+        ref_feats = feats['ref_feats']
+        src_feats = feats['src_feats']
+        ref_feats = self.feat0_proj(ref_feats)
+        src_feats = self.feat1_proj(src_feats)
+
         t_emb = self.time_emb(t)
         c = t_emb
-        # pad ref_x last dimension to 128
+        
         ref_pad = torch.zeros(ref_x.shape[0], ref_x.shape[1], 256-ref_x.shape[2]).cuda()
-        ref_x = torch.cat([ref_x, ref_pad], dim=-1)
+        ref_x = torch.cat([ref_x, ref_feats, ref_pad], dim=-1)
         src_pad = torch.zeros(src_x.shape[0], src_x.shape[1], 256-src_x.shape[2]).cuda()
-        src_x = torch.cat([src_x, src_pad], dim=-1)
+        src_x = torch.cat([src_x, src_feats, src_pad], dim=-1)
         ref_x, src_x = self.transformer(
             ref_x,
             src_x,
             ref_geo_emb,
             src_geo_emb,
-            ref_voxel_emb,
-            src_voxel_emb,
             c,
         )
-        src_x = src_x.transpose(1, 2)
-        #x = torch.mean(torch.stack((ref_x, src_x)), dim=0)
-        #x = self.split(x)
-        #x = ref_x.unsqueeze(2).repeat(1, 1, src_x.shape[1], 1) + src_x.unsqueeze(1).repeat(1, ref_x.shape[1], 1, 1)
-        #x = self.final_layer(x)
-        ref_x = rearrange(ref_x, 'b h w c -> b c h w')
-        src_x = rearrange(src_x, 'b h w c -> b c h w')
-        return ref_x, src_x
+        x = ref_x.unsqueeze(2).repeat(1, 1, src_x.shape[1], 1) + src_x.unsqueeze(1).repeat(1, ref_x.shape[1], 1, 1)
+        x = self.final_layer(x)
+        x = rearrange(x, 'b h w c -> b c h w')
+        return x
 
 
 
@@ -372,19 +350,13 @@ class RPEDiT(Module):
         hidden_dim,
         num_heads,
         blocks,
-        n_ref,
-        n_src,
         dropout=None,
         activation_fn='ReLU',
     ):
         super(RPEDiT, self).__init__()
-        self.n_ref = n_ref
-        self.n_src = n_src
         self.transformer = RPEConditionalTransformer(
             blocks, hidden_dim, num_heads, dropout=dropout, activation_fn=activation_fn
         )
-        self.final_layer0 = Finallayer(hidden_dim, n_src)
-        self.final_layer1 = Finallayer(hidden_dim, n_ref)
         self.adaLN_modulation = Sequential(
             SiLU(),
             Linear(hidden_dim, 6 * hidden_dim, bias=True)
@@ -396,8 +368,6 @@ class RPEDiT(Module):
             feats1,
             geo_emb0,
             geo_emb1,
-            voxel_emb0,
-            voxel_emb1,
             c,
     ):
         shift_msa, scale_msa, gate_msa, shift_mlp, scale_mlp, gate_mlp = self.adaLN_modulation(c).chunk(6, dim=1)
@@ -419,8 +389,6 @@ class RPEDiT(Module):
         )
         feats0 = F.normalize(feats0, p=2, dim=1)
         feats1 = F.normalize(feats1, p=2, dim=1)
-        feats0 = self.final_layer0(feats0, c).view(feats0.shape[0], -1, self.n_src, 1)
-        feats1 = self.final_layer1(feats1, c).view(feats1.shape[0], -1, self.n_ref, 1)
 
         return feats0, feats1
 

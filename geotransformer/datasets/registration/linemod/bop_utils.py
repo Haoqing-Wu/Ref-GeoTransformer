@@ -512,8 +512,10 @@ def save_corr_pcd(output_dict):
     o3d.io.write_line_set("./output/geotransformer.modelnet.rpmnet.stage4.gse.k3.max.oacl.stage2.sinkhorn/result/line_outlier.ply", line_outlier)
 
 def save_corr_pcd_ddpm(output_dict, data_dict, log_dir, matching_radius):
-    tgt_pcd = data_dict['ref_points'].cpu()
-    src_pcd = data_dict['src_points'].cpu()
+    points = data_dict['points'][-1].cpu()
+    ref_length_c = data_dict['lengths'][-1][0].item()
+    tgt_pcd = points[:ref_length_c]
+    src_pcd = points[ref_length_c:]
     pred_corr = output_dict['pred_corr']
     tgt_corr_indices = pred_corr[:, 0]
     src_corr_indices = pred_corr[:, 1]
