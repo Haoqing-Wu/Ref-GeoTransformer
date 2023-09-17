@@ -1,7 +1,7 @@
 import os
 import os.path as osp
 from typing import Tuple, Dict
-
+import wandb
 import ipdb
 import torch
 import tqdm
@@ -275,6 +275,15 @@ class IterBasedDDPMTrainer(BaseTrainer):
         self.snapshot_steps = snapshot_steps
         self.snapshot_encoder_dir = cfg.snapshot_encoder_dir
         self.snapshot_ddpm_dir = cfg.snapshot_ddpm_dir
+        self.result_dir = cfg.result_dir
+        self.wandb_enable = cfg.wandb.enable
+
+        if self.wandb_enable:
+            wandb.init(
+                project=cfg.wandb.project,
+                name=cfg.wandb.name,
+                config=cfg
+            )
         
 
     def before_train(self) -> None:
@@ -327,6 +336,7 @@ class IterBasedDDPMTrainer(BaseTrainer):
         timer = Timer()
         #total_iterations = len(self.val_loader)
         total_iterations = 30
+        log_dir = self.result_dir + "/val_"
         pbar = tqdm.tqdm(enumerate(self.val_loader), total=total_iterations)
         for iteration, data_dict in pbar:
             self.inner_iteration = iteration + 1
@@ -352,7 +362,8 @@ class IterBasedDDPMTrainer(BaseTrainer):
             #save_transformed_pcd(output_dict, data_dict)
             if iteration == 30:
                 # save the point cloud and corresponding prediction
-                save_transformed_pcd(output_dict, data_dict)
+                
+                est_tran_pcd_plt = save_transformed_pcd(output_dict, data_dict, log_dir)
                 break
 
         self.after_val()
@@ -360,6 +371,17 @@ class IterBasedDDPMTrainer(BaseTrainer):
         message = '[Val] ' + get_log_string(summary_dict, iteration=self.iteration, timer=timer)
         self.logger.critical(message)
         self.write_event('val', summary_dict, self.iteration // self.snapshot_steps)
+        if self.wandb_enable:
+            wandb.log({
+                "Val": {
+                    "RRE": summary_dict['RRE'],
+                    "RTE": summary_dict['RTE'],
+                    "RMSE": summary_dict['RMSE'],
+                    "RR": summary_dict['RR'],
+                    "Est_pose": wandb.Object3D(est_tran_pcd_plt)
+                }
+                
+            })
         self.set_train_mode()
 
     def inference_test(self):
@@ -369,6 +391,7 @@ class IterBasedDDPMTrainer(BaseTrainer):
         timer = Timer()
         #total_iterations = len(self.test_loader)
         total_iterations = 50
+        log_dir = self.result_dir + "/test_"
         pbar = tqdm.tqdm(enumerate(self.test_loader), total=total_iterations)
         for iteration, data_dict in pbar:
             self.inner_iteration = iteration + 1
@@ -393,7 +416,9 @@ class IterBasedDDPMTrainer(BaseTrainer):
             torch.cuda.empty_cache()
             if iteration == 50:
                 # save the point cloud and corresponding prediction
-                #save_transformed_pcd(output_dict, data_dict)
+                
+                est_tran_pcd_plt = save_transformed_pcd(output_dict, data_dict, log_dir)
+
                 break
 
         self.after_val()
@@ -401,6 +426,17 @@ class IterBasedDDPMTrainer(BaseTrainer):
         message = '[Test] ' + get_log_string(summary_dict, iteration=self.iteration, timer=timer)
         self.logger.critical(message)
         self.write_event('test', summary_dict, self.iteration // self.snapshot_steps)
+        if self.wandb_enable:
+            wandb.log({
+                "Test": {
+                    "RRE": summary_dict['RRE'],
+                    "RTE": summary_dict['RTE'],
+                    "RMSE": summary_dict['RMSE'],
+                    "RR": summary_dict['RR'],
+                    "Est_pose": wandb.Object3D(est_tran_pcd_plt)
+                                
+                }
+            })
         self.set_train_mode()
 
     def run(self):
@@ -463,6 +499,13 @@ class IterBasedDDPMTrainer(BaseTrainer):
                 )
                 self.logger.info(message)
                 self.write_event('train', summary_dict, self.iteration)
+                if self.wandb_enable:
+                    wandb.log({
+                        "Train": {
+                            "loss": summary_dict['loss'],
+                            "lr": self.get_lr()
+                        }    
+                    })
             # snapshot & validation
             if self.iteration % self.snapshot_steps == 0:
                 self.epoch = train_loader.last_epoch

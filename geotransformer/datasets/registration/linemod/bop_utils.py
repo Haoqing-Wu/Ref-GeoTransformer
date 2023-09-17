@@ -626,7 +626,7 @@ def statistical_outlier_rm(pcd, num, std=1.0):
     pcd_cl = np.array(cl.points)
     return pcd_cl
 
-def save_transformed_pcd(output_dict, data_dict):
+def save_transformed_pcd(output_dict, data_dict, log_dir):
     transform = data_dict['transform'].squeeze(0)
     pred_rt = output_dict['pred_rt']
     #quat = pred_rt[:4]
@@ -641,19 +641,28 @@ def save_transformed_pcd(output_dict, data_dict):
 
     src_points = data_dict['src_points'].squeeze(0)
     ref_points = data_dict['ref_points'].squeeze(0)
-    gt_src_points = apply_transform(src_points, transform)
-    est_src_points = apply_transform(src_points, est_transform)
+    gt_src_points = apply_transform(src_points, transform).cpu().numpy()
+    est_src_points = apply_transform(src_points, est_transform).cpu().numpy()
 
     src_pcd_plt = o3d.geometry.PointCloud()
     src_pcd_plt.points = o3d.utility.Vector3dVector(src_points.cpu().numpy())
-    o3d.io.write_point_cloud("./output/geotransformer.modelnet.rpmnet.stage4.gse.k3.max.oacl.stage2.sinkhorn/result/src_pcd_plt.ply", src_pcd_plt)
+    o3d.io.write_point_cloud(log_dir + "src_pcd_plt.ply", src_pcd_plt)
     ref_pcd_plt = o3d.geometry.PointCloud()
     ref_pcd_plt.points = o3d.utility.Vector3dVector(ref_points.cpu().numpy())
-    o3d.io.write_point_cloud("./output/geotransformer.modelnet.rpmnet.stage4.gse.k3.max.oacl.stage2.sinkhorn/result/ref_pcd_plt.ply", ref_pcd_plt)
+    o3d.io.write_point_cloud(log_dir + "ref_pcd_plt.ply", ref_pcd_plt)
 
     gt_tran_pcd_plt = o3d.geometry.PointCloud()
-    gt_tran_pcd_plt.points = o3d.utility.Vector3dVector(gt_src_points.cpu().numpy())
-    o3d.io.write_point_cloud("./output/geotransformer.modelnet.rpmnet.stage4.gse.k3.max.oacl.stage2.sinkhorn/result/gt_tran_pcd_plt.ply", gt_tran_pcd_plt)
+    gt_tran_pcd_plt.points = o3d.utility.Vector3dVector(gt_src_points)
+    o3d.io.write_point_cloud(log_dir + "gt_tran_pcd_plt.ply", gt_tran_pcd_plt)
     est_tran_pcd_plt = o3d.geometry.PointCloud()
-    est_tran_pcd_plt.points = o3d.utility.Vector3dVector(est_src_points.cpu().numpy())
-    o3d.io.write_point_cloud("./output/geotransformer.modelnet.rpmnet.stage4.gse.k3.max.oacl.stage2.sinkhorn/result/est_tran_pcd_plt.ply", est_tran_pcd_plt)
+    est_tran_pcd_plt.points = o3d.utility.Vector3dVector(est_src_points)
+    o3d.io.write_point_cloud(log_dir + "est_tran_pcd_plt.ply", est_tran_pcd_plt)
+
+    color_gt = np.array([[30, 255, 0] for i in range(gt_src_points.shape[0])])
+    color_est = np.array([[0, 255, 255] for i in range(est_src_points.shape[0])])
+
+    gt = np.concatenate((gt_src_points, color_gt), axis=1)
+    est = np.concatenate((est_src_points, color_est), axis=1)
+    cat = np.concatenate((gt, est), axis=0)
+
+    return cat

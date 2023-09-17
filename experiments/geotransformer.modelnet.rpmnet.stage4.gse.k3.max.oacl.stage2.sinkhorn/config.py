@@ -30,6 +30,12 @@ ensure_dir(_C.log_dir)
 ensure_dir(_C.event_dir)
 ensure_dir(_C.result_dir)
 
+# wandb
+_C.wandb = edict()
+_C.wandb.enable = True
+_C.wandb.project = "cordi_pose_base"
+_C.wandb.name = "lm6_b64_dino_b8_8l"
+
 # data
 _C.data = edict()
 _C.data.dataset_root = osp.join(_C.root_dir, "data", "ModelNet")
@@ -78,8 +84,8 @@ _C.optim.weight_decay = 1e-6
 _C.optim.warmup_steps = 1000
 _C.optim.eta_init = 0.1
 _C.optim.eta_min = 0.1
-_C.optim.max_iteration = 50000
-_C.optim.snapshot_steps = 500
+_C.optim.max_iteration = 100000
+_C.optim.snapshot_steps = 2000
 _C.optim.grad_acc_steps = 1
 
 # model - backbone
