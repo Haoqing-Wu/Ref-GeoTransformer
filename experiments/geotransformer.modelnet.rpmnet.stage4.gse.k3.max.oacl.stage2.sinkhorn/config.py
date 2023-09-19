@@ -19,6 +19,7 @@ _C.exp_name = osp.basename(_C.working_dir)
 _C.output_dir = osp.join(_C.root_dir, "output", _C.exp_name)
 _C.snapshot_encoder_dir = osp.join(_C.output_dir, "snapshots/encoder")
 _C.snapshot_ddpm_dir = osp.join(_C.output_dir, "snapshots/ddpm")
+_C.snapshot_recon_dir = osp.join(_C.output_dir, "snapshots/recon")
 _C.log_dir = osp.join(_C.output_dir, "logs")
 _C.event_dir = osp.join(_C.output_dir, "events")
 _C.result_dir = osp.join(_C.output_dir, "result")
@@ -26,15 +27,22 @@ _C.result_dir = osp.join(_C.output_dir, "result")
 ensure_dir(_C.output_dir)
 ensure_dir(_C.snapshot_encoder_dir)
 ensure_dir(_C.snapshot_ddpm_dir)
+ensure_dir(_C.snapshot_recon_dir)
 ensure_dir(_C.log_dir)
 ensure_dir(_C.event_dir)
 ensure_dir(_C.result_dir)
 
-# wandb
-_C.wandb = edict()
-_C.wandb.enable = True
-_C.wandb.project = "cordi_pose_base"
-_C.wandb.name = "lm6_b64_dino_b8_8l"
+# wandb ddpm
+_C.wandb_ddpm = edict()
+_C.wandb_ddpm.enable = False
+_C.wandb_ddpm.project = "cordi_pose_base"
+_C.wandb_ddpm.name = "lm6_b64_dino_b8_8l"
+
+# wandb recon
+_C.wandb_recon = edict()
+_C.wandb_recon.enable = True
+_C.wandb_recon.project = "cordi_recon_base"
+_C.wandb_recon.name = "lmA_foldnet_plane_k16_d512"
 
 # data
 _C.data = edict()
@@ -147,6 +155,14 @@ _C.dino.arch = 'vit_base'
 _C.dino.patch_size = 8
 _C.dino.pretrained_weights = ''
 _C.dino.checkpoint_key = "teacher"
+
+# model - Recon
+_C.recon = edict()
+_C.recon.encoder = 'foldnet'
+_C.recon.k = 16
+_C.recon.feat_dims = 512
+_C.recon.shape = 'plane'
+
 
 # model - DDPM
 _C.ddpm = edict()

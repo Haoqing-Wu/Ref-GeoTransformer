@@ -92,6 +92,47 @@ class OverallLoss(nn.Module):
         }
 
 
+class ChamferLoss(nn.Module):
+    def __init__(self):
+        super(ChamferLoss, self).__init__()
+        self.use_cuda = torch.cuda.is_available()
+
+    def batch_pairwise_dist(self, x, y):
+        bs, num_points_x, points_dim = x.size()
+        _, num_points_y, _ = y.size()
+        xx = x.pow(2).sum(dim=-1)
+        yy = y.pow(2).sum(dim=-1)
+        zz = torch.bmm(x, y.transpose(2, 1))
+        rx = xx.unsqueeze(1).expand_as(zz.transpose(2, 1))
+        ry = yy.unsqueeze(1).expand_as(zz)
+        P = (rx.transpose(2, 1) + ry - 2 * zz)
+        return P
+
+    def loss(self, preds, gts):
+        P = self.batch_pairwise_dist(gts, preds)
+        mins, _ = torch.min(P, 1)
+        loss_1 = torch.sum(mins)
+        mins, _ = torch.min(P, 2)
+        loss_2 = torch.sum(mins)
+        return loss_1 + loss_2
+    
+    def forward(self, output_dict, data_dict):
+        ref_recon = output_dict['ref_recon']
+        src_recon = output_dict['src_recon']
+        ref_points = data_dict['ref_points']
+        src_points = data_dict['src_points']
+        batch_size = ref_points.shape[0]
+        loss_ref = self.loss(ref_recon, ref_points) / batch_size
+        loss_src = self.loss(src_recon, src_points) / batch_size
+        loss = loss_ref + loss_src
+        return {
+            'loss': loss,
+            'loss_ref': loss_ref,
+            'loss_src': loss_src,
+        }
+
+
+    
 class Evaluator(nn.Module):
     def __init__(self, cfg):
         super(Evaluator, self).__init__()
