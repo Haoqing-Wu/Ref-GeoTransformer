@@ -273,7 +273,7 @@ class IterBasedDDPMTrainer(BaseTrainer):
         )
         self.max_iteration = max_iteration
         self.snapshot_steps = snapshot_steps
-        self.snapshot_encoder_dir = cfg.snapshot_encoder_dir
+        self.snapshot_encoder_dir = cfg.snapshot_recon_dir
         self.snapshot_ddpm_dir = cfg.snapshot_ddpm_dir
         self.result_dir = cfg.result_dir
         self.wandb_enable = cfg.wandb_ddpm.enable
@@ -464,15 +464,13 @@ class IterBasedDDPMTrainer(BaseTrainer):
             data_dict = next(train_loader)
             with torch.no_grad():
                 data_dict = to_cuda(data_dict)
-
-                
+   
                 # concatenate each element list in data_dict into a single tensor
                 for key in data_dict.keys():
                     if isinstance(data_dict[key], list):
                         data_dict[key] = torch.cat(data_dict[key], dim=0)
                 
-                feat_2d = self.dino_model(data_dict['rgb'])
-                data_dict['feat_2d'] = feat_2d
+
             self.before_train_step(self.iteration, data_dict)
             self.timer.add_prepare_time()
             # forward
@@ -610,7 +608,9 @@ class IterBasedReconTrainer(BaseTrainer):
         summary_board = SummaryBoard(adaptive=True)
         timer = Timer()
         total_iterations = len(self.val_loader)
-        #total_iterations = 30
+        sample = np.random.randint(0, total_iterations)
+        src_pcd = None
+        ref_pcd = None
         log_dir = self.result_dir + "/val_"
         pbar = tqdm.tqdm(enumerate(self.val_loader), total=total_iterations)
         for iteration, data_dict in pbar:
@@ -633,11 +633,9 @@ class IterBasedReconTrainer(BaseTrainer):
             pbar.set_description(message)
             torch.cuda.empty_cache()
             #save_transformed_pcd(output_dict, data_dict)
-            if iteration == 30:
+            if iteration == sample:
                 # save the point cloud and corresponding prediction
-                pass
-                #est_tran_pcd_plt = save_transformed_pcd(output_dict, data_dict, log_dir)
-                #break
+                src_pcd, ref_pcd = save_recon_pcd(output_dict, data_dict, log_dir)
 
         self.after_val()
         summary_dict = summary_board.summary()
@@ -649,7 +647,9 @@ class IterBasedReconTrainer(BaseTrainer):
                 "Val": {
                     "loss": summary_dict['loss'],
                     "loss_ref": summary_dict['loss_ref'],
-                    "loss_src": summary_dict['loss_src']
+                    "loss_src": summary_dict['loss_src'],
+                    "src_pcd": wandb.Object3D(src_pcd),
+                    "ref_pcd": wandb.Object3D(ref_pcd)
                 }
                 
             })
@@ -661,8 +661,11 @@ class IterBasedReconTrainer(BaseTrainer):
         summary_board = SummaryBoard(adaptive=True)
         timer = Timer()
         total_iterations = len(self.test_loader)
+        sample = np.random.randint(0, total_iterations)
+        src_pcd = None
+        ref_pcd = None
         log_dir = self.result_dir + "/test_"
-        pbar = tqdm.tqdm(enumerate(self.test_loader), total=total_iterations)
+        pbar = tqdm.tqdm(enumerate(self.test_loader), total=total_iterations) 
         for iteration, data_dict in pbar:
             self.inner_iteration = iteration + 1
             data_dict = to_cuda(data_dict)
@@ -682,12 +685,9 @@ class IterBasedReconTrainer(BaseTrainer):
             )
             pbar.set_description(message)
             torch.cuda.empty_cache()
-            if iteration == 50:
+            if iteration == sample:
                 # save the point cloud and corresponding prediction
-                pass
-                #est_tran_pcd_plt = save_transformed_pcd(output_dict, data_dict, log_dir)
-
-                #break
+                src_pcd, ref_pcd = save_recon_pcd(output_dict, data_dict, log_dir)
 
         self.after_val()
         summary_dict = summary_board.summary()
@@ -699,7 +699,9 @@ class IterBasedReconTrainer(BaseTrainer):
                 "Test": {
                     "loss": summary_dict['loss'],
                     "loss_ref": summary_dict['loss_ref'],
-                    "loss_src": summary_dict['loss_src']  
+                    "loss_src": summary_dict['loss_src'],
+                    "src_pcd": wandb.Object3D(src_pcd),
+                    "ref_pcd": wandb.Object3D(ref_pcd)
                 }
             })
         self.set_train_mode()

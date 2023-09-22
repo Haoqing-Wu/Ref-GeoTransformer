@@ -44,6 +44,10 @@ class transformer(Module):
             LayerNorm(768),
             Linear(768, 256)
         )
+        self.feat_3d_mlp = Sequential(
+            LayerNorm(512),
+            Linear(512, 256)
+        )
 
     def feature_fusion_cat(self, feat0, feat1):
         feat_matrix = torch.cat([feat0.unsqueeze(2).repeat(1, 1, feat1.shape[1], 1),
@@ -76,13 +80,16 @@ class transformer(Module):
     def forward(self, x_t, t, feats):
 
         feat_2d = feats.get('feat_2d')
+        feat_3d = feats.get('feat_3d')
         x = x_t.squeeze(1)
         x = x.unsqueeze(-1).repeat(1, 1, 256)
         x = x + self.pos_emb(x)
 
         t = self.time_emb(t)
         c_2d = self.feat_2d_mlp(feat_2d)
-        c = t + c_2d
+        c_3d = self.feat_3d_mlp(feat_3d)
+        c = c_2d + c_3d
+        c = t + c
 
         for block in self.DiT_blocks:
             x = block(x, c)

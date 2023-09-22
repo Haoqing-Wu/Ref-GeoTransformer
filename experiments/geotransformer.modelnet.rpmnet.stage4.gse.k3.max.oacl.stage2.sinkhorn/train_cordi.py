@@ -15,7 +15,7 @@ from geotransformer.modules.cordi import vision_transformer as vits
 
 from config import make_cfg
 from dataset import train_valid_data_loader
-from model import create_model
+from geotransformer.modules.recon.model import create_model
 from loss import OverallLoss, DDPMEvaluator
 
 
@@ -61,12 +61,19 @@ class DDPMTrainer(IterBasedDDPMTrainer):
         self.evaluator = DDPMEvaluator(cfg).cuda()
 
     def train_step(self, iteration, data_dict):
+        with torch.no_grad():
+            feat_2d = self.dino_model(data_dict['rgb'])
+            feat_3d = self.encoder_model(data_dict).get('feats')
+        data_dict['feat_2d'] = feat_2d
+        data_dict['feat_3d'] = feat_3d
         loss_dict = self.model.get_loss(data_dict)
         return loss_dict
 
     def val_step(self, iteration, data_dict):
         feat_2d = self.dino_model(data_dict['rgb'])
+        feat_3d = self.encoder_model(data_dict).get('feats')
         data_dict['feat_2d'] = feat_2d.squeeze(0)
+        data_dict['feat_3d'] = feat_3d.squeeze(0)
         output_dict = self.model.sample(data_dict)
         result_dict = self.evaluator(output_dict, data_dict)
         return output_dict, result_dict

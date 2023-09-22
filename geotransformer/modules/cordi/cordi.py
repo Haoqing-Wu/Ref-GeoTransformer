@@ -170,10 +170,12 @@ class Cordi(Module):
     
     def get_loss(self, d_dict):
 
-        feat_2d = d_dict.get('feat_2d').cuda()
+        feat_2d = d_dict.get('feat_2d')
+        feat_3d = d_dict.get('feat_3d')
         rt = d_dict.get('rt').unsqueeze(1)
         feats = {}
         feats['feat_2d'] = feat_2d
+        feats['feat_3d'] = feat_3d
         t = torch.randint(0, self.diffusion_new.num_timesteps, (rt.shape[0],), device='cuda')
         loss_dict = self.diffusion_new.training_losses(self.net, rt, t, feats)
         loss = loss_dict["loss"].mean()
@@ -182,9 +184,11 @@ class Cordi(Module):
     def sample(self, d_dict):
 
         rt_T = torch.randn_like(d_dict.get('rt')).cuda().unsqueeze(1)
-        feat_2d = d_dict.get('feat_2d').cuda()
+        feat_2d = d_dict.get('feat_2d')
+        feat_3d = d_dict.get('feat_3d')
         feats = {}
         feats['feat_2d'] = feat_2d
+        feats['feat_3d'] = feat_3d
         pred_rt = self.diffusion_new.p_sample_loop(
             self.net, rt_T.shape, rt_T, clip_denoised=False, model_kwargs=feats, progress=True, device='cuda'
         ).cpu()

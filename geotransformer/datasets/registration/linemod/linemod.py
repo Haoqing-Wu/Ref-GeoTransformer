@@ -101,6 +101,12 @@ class LMODataset(data.Dataset):
             # add noise
             src_pcd += (np.random.rand(src_pcd.shape[0], 3) - 0.5) * self.augment_noise
             tgt_pcd += (np.random.rand(tgt_pcd.shape[0], 3) - 0.5) * self.augment_noise
+
+        # calculate the center of ref_pcd and move it to the origin
+        tgt_pcd_raw = tgt_pcd
+        center_ref = np.mean(tgt_pcd, axis=0)
+        tgt_pcd -= center_ref
+        trans -= center_ref.reshape(3, 1)
         # init features
         src_feats = np.ones_like(src_pcd[:, :1])
         tgt_feats = np.ones_like(tgt_pcd[:, :1])
@@ -125,8 +131,10 @@ class LMODataset(data.Dataset):
         return {
             'src_points': src_pcd.astype(np.float32),
             'ref_points': tgt_pcd.astype(np.float32),
+            'ref_points_raw': tgt_pcd_raw.astype(np.float32),
             'rgb': rgb,
             'transform': transform.astype(np.float32),
+            'center_ref': center_ref.astype(np.float32),
             'src_feats': src_feats.astype(np.float32),
             'ref_feats': tgt_feats.astype(np.float32),
             'rt': quaternion.astype(np.float32)   
@@ -201,18 +209,14 @@ class LMODataset(data.Dataset):
                 tgt_pcd = cloud / 1000.0  # scale to meters
 
                 if self.mode == 'test':
-                    tgt_pcd = statistical_outlier_rm(tgt_pcd, num=30)
+                    tgt_pcd = statistical_outlier_rm(tgt_pcd, num=100)
                     
                 src_pcd = resize_pcd(src_pcd_, self.points_limit)
                 tgt_pcd = resize_pcd(tgt_pcd, self.points_limit)
 
                 if (trans.ndim == 1):
                     trans = trans[:, None]
-                #src_pcd = sort_pcd_from_center(src_pcd)
-                #tgt_pcd = sort_pcd_from_center(tgt_pcd)
-                
 
-                #src_pcd, tgt_pcd = normalize_points(src_pcd, tgt_pcd, rot, trans)
 
                 # image processing
                 rgb_img = np.array(Image.open(str(rgb_files[frame_id])))

@@ -122,8 +122,8 @@ class ChamferLoss(nn.Module):
         ref_points = data_dict['ref_points']
         src_points = data_dict['src_points']
         batch_size = ref_points.shape[0]
-        loss_ref = self.loss(ref_recon, ref_points) / batch_size
-        loss_src = self.loss(src_recon, src_points) / batch_size
+        loss_ref = self.loss(ref_recon, ref_points)
+        loss_src = self.loss(src_recon, src_points)
         loss = loss_ref + loss_src
         return {
             'loss': loss,
