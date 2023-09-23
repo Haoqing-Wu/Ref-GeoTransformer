@@ -88,7 +88,8 @@ class transformer(Module):
         t = self.time_emb(t)
         c_2d = self.feat_2d_mlp(feat_2d)
         c_3d = self.feat_3d_mlp(feat_3d)
-        c = c_2d + c_3d
+        #c = c_2d + c_3d
+        c = c_3d
         c = t + c
 
         for block in self.DiT_blocks:

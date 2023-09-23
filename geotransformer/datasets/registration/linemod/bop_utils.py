@@ -627,16 +627,16 @@ def statistical_outlier_rm(pcd, num, std=1.0):
     return pcd_cl
 
 def save_transformed_pcd(output_dict, data_dict, log_dir):
-    transform = data_dict['transform'].squeeze(0)
+    transform = data_dict['transform_raw'].squeeze(0)
     pred_rt = output_dict['pred_rt']
-    #quat = pred_rt[:4]
-    quat = pred_rt
+    quat = pred_rt[:4]
+    trans = pred_rt[4:] + output_dict['center_ref'].cpu()
+
     # if nan in quaternion, set it to 1
     if torch.isnan(quat).any():
         quat = torch.tensor([1.0, 0.0, 0.0, 0.0]).cpu()
     r = Rotation.from_quat(quat)
     rot = r.as_matrix()
-    trans = transform[:3, 3].cpu().numpy()
     est_transform = torch.from_numpy(get_transform_from_rotation_translation(rot, trans).astype(np.float32)).cuda()
 
     src_points = data_dict['src_points'].squeeze(0)

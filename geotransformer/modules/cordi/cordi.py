@@ -196,7 +196,8 @@ class Cordi(Module):
         return {
             'ref_points': d_dict.get('ref_points').squeeze(0),
             'src_points': d_dict.get('src_points').squeeze(0),
-            'pred_rt': pred_rt.squeeze(0),
+            'center_ref': d_dict.get('center_ref').squeeze(0),
+            'pred_rt': pred_rt.squeeze(0)     
             }
         
 

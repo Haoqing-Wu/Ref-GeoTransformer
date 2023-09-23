@@ -103,19 +103,19 @@ class LMODataset(data.Dataset):
             tgt_pcd += (np.random.rand(tgt_pcd.shape[0], 3) - 0.5) * self.augment_noise
 
         # calculate the center of ref_pcd and move it to the origin
-        tgt_pcd_raw = tgt_pcd
+        tgt_pcd_raw = tgt_pcd.copy()
+        trans_raw = trans.reshape(-1).copy()
         center_ref = np.mean(tgt_pcd, axis=0)
         tgt_pcd -= center_ref
         trans -= center_ref.reshape(3, 1)
-        # init features
-        src_feats = np.ones_like(src_pcd[:, :1])
-        tgt_feats = np.ones_like(tgt_pcd[:, :1])
+
         trans = trans.reshape(-1)
         r = Rotation.from_matrix(rot)
         quaternion = r.as_quat()
-        #rt = np.concatenate((quaternion, trans), axis=0)
+        rt = np.concatenate((quaternion, trans), axis=0)
 
         transform = get_transform_from_rotation_translation(rot, trans)
+        transform_raw = get_transform_from_rotation_translation(rot, trans_raw)
 
 
         rgb = Image.fromarray(rgb)
@@ -134,10 +134,9 @@ class LMODataset(data.Dataset):
             'ref_points_raw': tgt_pcd_raw.astype(np.float32),
             'rgb': rgb,
             'transform': transform.astype(np.float32),
+            'transform_raw': transform_raw.astype(np.float32),
             'center_ref': center_ref.astype(np.float32),
-            'src_feats': src_feats.astype(np.float32),
-            'ref_feats': tgt_feats.astype(np.float32),
-            'rt': quaternion.astype(np.float32)   
+            'rt': rt.astype(np.float32)   
         }
 
 

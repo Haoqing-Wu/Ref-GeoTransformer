@@ -322,17 +322,16 @@ class DDPMEvaluator(nn.Module):
 
     @torch.no_grad()
     def evaluate_registration(self, output_dict, data_dict):
-        transform = data_dict['transform'].squeeze(0)
+        transform = data_dict['transform_raw'].squeeze(0)
         pred_rt = output_dict['pred_rt']
-        #quat = pred_rt[:4]
-        quat = pred_rt
+        quat = pred_rt[:4]
+        trans = pred_rt[4:] + output_dict['center_ref'].cpu()
         # if nan in quaternion, set it to 1
         if torch.isnan(quat).any():
             quat = torch.tensor([1.0, 0.0, 0.0, 0.0]).cpu()
             print('nan in quaternion')
         r = Rotation.from_quat(quat)
         rot = r.as_matrix()
-        trans = transform[:3, 3].cpu().numpy()
         est_transform = torch.from_numpy(get_transform_from_rotation_translation(rot, trans).astype(np.float32)).cuda()
 
         src_points = output_dict['src_points']

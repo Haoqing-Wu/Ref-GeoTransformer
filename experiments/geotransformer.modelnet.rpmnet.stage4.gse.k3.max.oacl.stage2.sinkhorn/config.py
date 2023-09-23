@@ -36,11 +36,11 @@ ensure_dir(_C.result_dir)
 _C.wandb_ddpm = edict()
 _C.wandb_ddpm.enable = False
 _C.wandb_ddpm.project = "cordi_pose_base"
-_C.wandb_ddpm.name = "lm6_b64_dino_b8_8l"
+_C.wandb_ddpm.name = "lm6_b16_se3_foldnet_b8_8l"
 
 # wandb recon
 _C.wandb_recon = edict()
-_C.wandb_recon.enable = True
+_C.wandb_recon.enable = False
 _C.wandb_recon.project = "cordi_recon_base"
 _C.wandb_recon.name = "lmA_shift_or100_dgcnn_plane_k16_d512"
 
@@ -92,8 +92,8 @@ _C.optim.weight_decay = 1e-6
 _C.optim.warmup_steps = 1000
 _C.optim.eta_init = 0.1
 _C.optim.eta_min = 0.1
-_C.optim.max_iteration = 500000
-_C.optim.snapshot_steps = 50
+_C.optim.max_iteration = 100000
+_C.optim.snapshot_steps = 2000
 _C.optim.grad_acc_steps = 1
 
 # model - backbone
@@ -158,7 +158,7 @@ _C.dino.checkpoint_key = "teacher"
 
 # model - Recon
 _C.recon = edict()
-_C.recon.encoder = 'dgcnn_cls'
+_C.recon.encoder = 'foldnet'
 _C.recon.k = 16
 _C.recon.feat_dims = 512
 _C.recon.shape = 'plane'
