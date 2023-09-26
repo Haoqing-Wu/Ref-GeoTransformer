@@ -11,4 +11,5 @@ data/Kitti/downsampled
 data/ModelNet/*.pkl
 *.ply
 data/linemod
+data/tless
 wandb

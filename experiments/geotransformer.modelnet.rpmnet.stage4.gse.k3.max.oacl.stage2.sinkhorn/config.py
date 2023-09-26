@@ -36,30 +36,21 @@ ensure_dir(_C.result_dir)
 _C.wandb_ddpm = edict()
 _C.wandb_ddpm.enable = False
 _C.wandb_ddpm.project = "cordi_pose_base"
-_C.wandb_ddpm.name = "lm6_b16_se3_foldnet_b8_8l"
+_C.wandb_ddpm.name = "lmA_b64_se3_foldnet_b8_8l"
 
 # wandb recon
 _C.wandb_recon = edict()
-_C.wandb_recon.enable = False
+_C.wandb_recon.enable = True
 _C.wandb_recon.project = "cordi_recon_base"
-_C.wandb_recon.name = "lmA_shift_or100_dgcnn_plane_k16_d512"
+_C.wandb_recon.name = "tlessA_b32_shift_or200_foldnet_plane_k16_d512"
 
 # data
 _C.data = edict()
-_C.data.dataset_root = osp.join(_C.root_dir, "data", "ModelNet")
-_C.data.num_points = 717
-_C.data.voxel_size = None
-_C.data.rotation_magnitude = 45.0
-_C.data.translation_magnitude = 0.5
-_C.data.keep_ratio = 0.7
-_C.data.crop_method = "plane"
-_C.data.asymmetric = True
-_C.data.twice_sample = True
-_C.data.twice_transform = False
+_C.data.dataset = "tless"
 
 # train data
 _C.train = edict()
-_C.train.batch_size = 16
+_C.train.batch_size = 32
 _C.train.num_workers = 8
 _C.train.noise_magnitude = 0.05
 _C.train.class_indices = "all"
@@ -92,8 +83,8 @@ _C.optim.weight_decay = 1e-6
 _C.optim.warmup_steps = 1000
 _C.optim.eta_init = 0.1
 _C.optim.eta_min = 0.1
-_C.optim.max_iteration = 100000
-_C.optim.snapshot_steps = 2000
+_C.optim.max_iteration = 500000
+_C.optim.snapshot_steps = 5000
 _C.optim.grad_acc_steps = 1
 
 # model - backbone

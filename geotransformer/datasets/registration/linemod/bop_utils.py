@@ -21,17 +21,24 @@ def sample_point_from_mesh(model_root,samples):
     normals = np.asarray(pcd.normals)
     return points, normals
 
-def get_bbox(bbox):
+def get_bbox(bbox, img_size='linemod'):
     r"""Get bounding box from a mask.
     Return coordinates of the bounding box [x_min, y_min, x_max, y_max]
     """
-    border_list = [-1, 40, 80, 120, 160, 200, 240, 280, 320, 360, 400, 440, 480, 520, 560, 600, 640, 680]
-
+    if img_size == 'linemod':
+        border_list = [-1, 40, 80, 120, 160, 200, 240, 280, 320, 360, 400, 440, 480, 520, 560, 600, 640, 680]
+        x_max = 640
+        y_max = 480
+    if img_size == 'tless':
+        border_list = [-1, 40, 80, 120, 160, 200, 240, 280, 320, 360, 400, 440, 480, 520, 560, 600, 640, 680,
+                       720, 760, 800, 840, 880, 920, 960, 1000, 1040, 1080, 1120, 1160, 1200, 1240, 1280]
+        x_max = 1280
+        y_max = 1024
     rmin, rmax, cmin, cmax = bbox[1], bbox[1] + bbox[3], bbox[0], bbox[0] + bbox[2]
     rmin = max(rmin, 0)
-    rmax = min(rmax, 479)
+    rmax = min(rmax, y_max-1)
     cmin = max(cmin, 0)
-    cmax = min(cmax, 639)
+    cmax = min(cmax, x_max-1)
     r_b = rmax - rmin
     c_b = cmax - cmin
 
@@ -51,8 +58,8 @@ def get_bbox(bbox):
     cmax = center[1] + max(int(r_b / 2), int(c_b / 2))
     rmin = max(rmin, 0)
     cmin = max(cmin, 0)
-    rmax = min(rmax, 480)
-    cmax = min(cmax, 640)
+    rmax = min(rmax, y_max)
+    cmax = min(cmax, x_max)
 
     return rmin, rmax, cmin, cmax
 
@@ -75,6 +82,20 @@ def get_gt(gt_file, frame_id):
     trans = np.array(gt['cam_t_m2c']) / 1000
     return rot, trans
 
+def get_gt_scene(gt_file, frame_id):
+    r"""Get ground truth pose from a ground truth file.
+    Return rotation matrix and translation vector
+    """
+    gt_scene = []
+    with open(gt_file, 'r') as file:
+        gt_list = json.load(file)[str(frame_id)]
+    for gt in gt_list:
+        obj_id = gt['obj_id']
+        rot = np.array(gt['cam_R_m2c']).reshape(3, 3)
+        trans = np.array(gt['cam_t_m2c']) / 1000
+        gt_scene.append({'obj_id': obj_id, 'rot': rot, 'trans': trans})
+    return gt_scene
+
 def get_camera_info(cam_file, frame_id):
     r"""Get camera intrinsics from a camera file.
     Return camera center, focal length
@@ -87,6 +108,45 @@ def get_camera_info(cam_file, frame_id):
     cam_fx = cam_k[0, 0]
     cam_fy = cam_k[1, 1]
     return cam_cx, cam_cy, cam_fx, cam_fy
+
+def get_model_symmetry(info_file, model_id):
+    with open(info_file, 'r') as file:
+        model_info = json.load(file)[str(model_id)]
+    if model_info.get('symmetries_continuous') is not None:
+        symmetry = model_info['symmetries_continuous'][0]
+        axis = np.array(symmetry['axis'])
+        # randomize an angle
+        angle = np.random.uniform(0, 2 * np.pi)
+        rot = rotation_matrix_from_axis(axis, angle)
+        trans = np.zeros(3)
+        return rot, trans
+    if model_info.get('symmetries_discrete') is not None:
+        symmetries = model_info['symmetries_discrete']
+        symmetry = symmetries[np.random.randint(0, len(symmetries))]
+        symmetry = np.array(symmetry).reshape(4, 4)
+        rot = symmetry[:3, :3]
+        trans = symmetry[:3, 3] / 1000.0
+        # not change if 0.5 probability
+        if np.random.uniform(0., 1.) < 0.5:
+            rot = np.eye(3)
+            trans = np.zeros(3)
+        else:
+            pass
+        return rot, trans
+
+def rotation_matrix_from_axis(axis, angle):
+    axis = axis / np.linalg.norm(axis)
+
+    sin_theta = np.sin(angle)
+    cos_theta = np.cos(angle)
+
+    K = np.array([[0, -axis[2], axis[1]],
+                  [axis[2], 0, -axis[0]],
+                  [-axis[1], axis[0], 0]])
+
+    R = np.eye(3) + sin_theta * K + (1 - cos_theta) * np.dot(K, K)
+    
+    return R
 
 def resize_pcd(pcd, points_limit):
     r"""Resize a point cloud to a given number of points.
@@ -183,6 +243,26 @@ def apply_transform(points: torch.Tensor, transform: torch.Tensor, normals: Opti
     else:
         return points
 
+def get_transformation_inv(rot, trans):
+    rot_inv = np.linalg.inv(rot)
+    trans_inv = -np.matmul(rot_inv, trans)
+    return rot_inv, trans_inv
+
+def get_transformation_indirect(rot1, trans1, rot2, trans2):
+    rot1_inv = np.linalg.inv(rot1)
+    trans1_inv = -np.matmul(rot1_inv, trans1)
+
+    transform1_inv = np.hstack((rot1_inv, trans1_inv.reshape(3, 1)))
+    transform1_inv = np.vstack((transform1_inv, np.array([[0, 0, 0, 1]])))
+    transform2 = np.hstack((rot2, trans2.reshape(3, 1)))
+    transform2 = np.vstack((transform2, np.array([[0, 0, 0, 1]])))
+
+    transform = np.matmul(transform2, transform1_inv)
+    rot = transform[:3, :3]
+    trans = transform[:3, 3]
+    return rot, trans
+
+
 def get_corr(tgt_pcd, src_pcd, rot, trans, radius):
     r"""Find the ground truth correspondences within the matching radius between two point clouds.
     Return correspondence indices [indices in ref_points, indices in src_points]
@@ -236,18 +316,6 @@ def get_corr_similarity(corr_matrix, gt_corr_matrix):
     res = num / denom
     res[np.isneginf(res)] = 0
     return 0.5 + 0.5 * res
-
-def focal_loss(y_true, y_pred, gamma=2):
-    """
-    Focal loss function for binary classification
-    """
-    criterion = FocalLoss(gamma)
-    y_pred = torch.from_numpy(y_pred.flatten())
-    y_pred = torch.nn.Sigmoid()(y_pred)
-    y_true = (y_true + 1) / 2
-    y_true = torch.from_numpy(y_true.flatten().astype(np.int64))
-    focal_loss = criterion(y_pred, y_true)
-    return focal_loss.numpy()
 
 def normalize_points(src, tgt, rot, trans):
     r"""Normalize point cloud to a unit sphere at origin."""
@@ -620,11 +688,16 @@ def test_normalize_pcd(tgt_pcd, src_pcd, rot, trans):
 def statistical_outlier_rm(pcd, num, std=1.0):
     pcd_o3d = o3d.geometry.PointCloud()
     pcd_o3d.points = o3d.utility.Vector3dVector(pcd)
-    o3d.io.write_point_cloud("./output/geotransformer.modelnet.rpmnet.stage4.gse.k3.max.oacl.stage2.sinkhorn/result/raw.ply", pcd_o3d)
+    #o3d.io.write_point_cloud("./output/geotransformer.modelnet.rpmnet.stage4.gse.k3.max.oacl.stage2.sinkhorn/result/raw.ply", pcd_o3d)
     cl, ind = pcd_o3d.remove_statistical_outlier(nb_neighbors=num, std_ratio=std)
-    o3d.io.write_point_cloud("./output/geotransformer.modelnet.rpmnet.stage4.gse.k3.max.oacl.stage2.sinkhorn/result/cl.ply", cl)
+    #o3d.io.write_point_cloud("./output/geotransformer.modelnet.rpmnet.stage4.gse.k3.max.oacl.stage2.sinkhorn/result/cl.ply", cl)
     pcd_cl = np.array(cl.points)
     return pcd_cl
+
+def debug_save_pcd(pcd, dir):
+    pcd_o3d = o3d.geometry.PointCloud()
+    pcd_o3d.points = o3d.utility.Vector3dVector(pcd)
+    o3d.io.write_point_cloud(dir, pcd_o3d)
 
 def save_transformed_pcd(output_dict, data_dict, log_dir):
     transform = data_dict['transform_raw'].squeeze(0)
@@ -705,3 +778,4 @@ def save_recon_pcd(output_dict, data_dict, log_dir):
     
 
     return src, ref
+
