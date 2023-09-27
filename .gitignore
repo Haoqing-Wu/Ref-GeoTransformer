@@ -10,6 +10,5 @@ pretrained
 data/Kitti/downsampled
 data/ModelNet/*.pkl
 *.ply
-data/linemod
-data/tless
+data
 wandb

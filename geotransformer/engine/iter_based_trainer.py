@@ -275,7 +275,8 @@ class IterBasedDDPMTrainer(BaseTrainer):
         self.snapshot_steps = snapshot_steps
         self.snapshot_encoder_dir = cfg.snapshot_recon_dir
         self.snapshot_ddpm_dir = cfg.snapshot_ddpm_dir
-        self.result_dir = cfg.result_dir
+        self.result_pcd_dir = cfg.result_pcd_dir
+        self.result_csv_dir = cfg.result_csv_dir
         self.wandb_enable = cfg.wandb_ddpm.enable
 
         if self.wandb_enable:
@@ -336,18 +337,19 @@ class IterBasedDDPMTrainer(BaseTrainer):
         timer = Timer()
         #total_iterations = len(self.val_loader)
         total_iterations = 30
-        log_dir = self.result_dir + "/val_"
+        log_dir = self.result_pcd_dir + "/val_"
+        csv_file = self.result_csv_dir + "/val_" + str(self.iteration) + "_result.csv"
+
         pbar = tqdm.tqdm(enumerate(self.val_loader), total=total_iterations)
         for iteration, data_dict in pbar:
             self.inner_iteration = iteration + 1
             data_dict = to_cuda(data_dict)
 
-
-
             self.before_val_step(self.inner_iteration, data_dict)
             timer.add_prepare_time()
             output_dict, result_dict = self.val_step(self.inner_iteration, data_dict)
             timer.add_process_time()
+            write_result_csv(output_dict, data_dict, csv_file)
             self.after_val_step(self.inner_iteration, data_dict, output_dict, result_dict)
             result_dict = self.release_tensors(result_dict)
             summary_board.update_from_result_dict(result_dict)
@@ -391,18 +393,19 @@ class IterBasedDDPMTrainer(BaseTrainer):
         timer = Timer()
         #total_iterations = len(self.test_loader)
         total_iterations = 50
-        log_dir = self.result_dir + "/test_"
+        log_dir = self.result_pcd_dir + "/test_"
+        csv_file = self.result_csv_dir + "/test_" + str(self.iteration) + "_result.csv"
+
         pbar = tqdm.tqdm(enumerate(self.test_loader), total=total_iterations)
         for iteration, data_dict in pbar:
             self.inner_iteration = iteration + 1
             data_dict = to_cuda(data_dict)
 
-
-
             self.before_val_step(self.inner_iteration, data_dict)
             timer.add_prepare_time()
             output_dict, result_dict = self.val_step(self.inner_iteration, data_dict)
             timer.add_process_time()
+            write_result_csv(output_dict, data_dict, csv_file)
             self.after_val_step(self.inner_iteration, data_dict, output_dict, result_dict)
             result_dict = self.release_tensors(result_dict)
             summary_board.update_from_result_dict(result_dict)
@@ -548,7 +551,8 @@ class IterBasedReconTrainer(BaseTrainer):
         self.max_iteration = max_iteration
         self.snapshot_steps = snapshot_steps
         self.snapshot_recon_dir = cfg.snapshot_recon_dir
-        self.result_dir = cfg.result_dir
+        self.result_pcd_dir = cfg.result_pcd_dir
+        self.result_csv_dir = cfg.result_csv_dir
         self.wandb_enable = cfg.wandb_recon.enable
 
         if self.wandb_enable:
@@ -611,7 +615,7 @@ class IterBasedReconTrainer(BaseTrainer):
         sample = np.random.randint(0, total_iterations)
         src_pcd = None
         ref_pcd = None
-        log_dir = self.result_dir + "/val_"
+        log_dir = self.result_pcd_dir + "/val_"
         pbar = tqdm.tqdm(enumerate(self.val_loader), total=total_iterations)
         for iteration, data_dict in pbar:
             self.inner_iteration = iteration + 1
@@ -664,7 +668,7 @@ class IterBasedReconTrainer(BaseTrainer):
         sample = np.random.randint(0, total_iterations)
         src_pcd = None
         ref_pcd = None
-        log_dir = self.result_dir + "/test_"
+        log_dir = self.result_pcd_dir + "/test_"
         pbar = tqdm.tqdm(enumerate(self.test_loader), total=total_iterations) 
         for iteration, data_dict in pbar:
             self.inner_iteration = iteration + 1

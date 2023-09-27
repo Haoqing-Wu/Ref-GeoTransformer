@@ -22,7 +22,8 @@ _C.snapshot_ddpm_dir = osp.join(_C.output_dir, "snapshots/ddpm")
 _C.snapshot_recon_dir = osp.join(_C.output_dir, "snapshots/recon")
 _C.log_dir = osp.join(_C.output_dir, "logs")
 _C.event_dir = osp.join(_C.output_dir, "events")
-_C.result_dir = osp.join(_C.output_dir, "result")
+_C.result_pcd_dir = osp.join(_C.output_dir, "result/pcd")
+_C.result_csv_dir = osp.join(_C.output_dir, "result/csv")
 
 ensure_dir(_C.output_dir)
 ensure_dir(_C.snapshot_encoder_dir)
@@ -30,23 +31,24 @@ ensure_dir(_C.snapshot_ddpm_dir)
 ensure_dir(_C.snapshot_recon_dir)
 ensure_dir(_C.log_dir)
 ensure_dir(_C.event_dir)
-ensure_dir(_C.result_dir)
+ensure_dir(_C.result_pcd_dir)
+ensure_dir(_C.result_csv_dir)
 
 # wandb ddpm
 _C.wandb_ddpm = edict()
 _C.wandb_ddpm.enable = False
 _C.wandb_ddpm.project = "cordi_pose_base"
-_C.wandb_ddpm.name = "lmA_b64_se3_foldnet_b8_8l"
+_C.wandb_ddpm.name = "lmA_b64_se3_foldnet_8l"
 
 # wandb recon
 _C.wandb_recon = edict()
-_C.wandb_recon.enable = True
+_C.wandb_recon.enable = False
 _C.wandb_recon.project = "cordi_recon_base"
 _C.wandb_recon.name = "tlessA_b32_shift_or200_foldnet_plane_k16_d512"
 
 # data
 _C.data = edict()
-_C.data.dataset = "tless"
+_C.data.dataset = "linemod"
 
 # train data
 _C.train = edict()
@@ -84,7 +86,7 @@ _C.optim.warmup_steps = 1000
 _C.optim.eta_init = 0.1
 _C.optim.eta_min = 0.1
 _C.optim.max_iteration = 500000
-_C.optim.snapshot_steps = 5000
+_C.optim.snapshot_steps = 20
 _C.optim.grad_acc_steps = 1
 
 # model - backbone

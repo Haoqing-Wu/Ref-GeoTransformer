@@ -43,7 +43,7 @@ class LMODataset(data.Dataset):
         super(LMODataset, self).__init__()
 
         # root dir
-        self.base_dir = data_folder + 'linemod/'
+        self.base_dir = data_folder + 'lm/'
         self.reload_data = reload_data
         # whether to do data augmentation
         self.data_augmentation = data_augmentation
@@ -129,6 +129,9 @@ class LMODataset(data.Dataset):
 
         
         return {
+            'scene_id': data_dict['scene_id'],
+            'img_id': data_dict['img_id'],
+            'obj_id': data_dict['obj_id'],
             'src_points': src_pcd.astype(np.float32),
             'ref_points': tgt_pcd.astype(np.float32),
             'ref_points_raw': tgt_pcd_raw.astype(np.float32),
@@ -224,6 +227,9 @@ class LMODataset(data.Dataset):
                 rgb = mask_rgb[rmin:rmax, cmin:cmax]
 
                 frame_data = {
+                    'scene_id': obj_id + 1,
+                    'img_id': int(frame_id),
+                    'obj_id': obj_id + 1,
                     'src_points': src_pcd.astype(np.float32),
                     'ref_points': tgt_pcd.astype(np.float32),
                     'rgb': rgb,

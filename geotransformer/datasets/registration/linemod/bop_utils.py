@@ -1,4 +1,5 @@
 import json
+import os
 import cv2
 import torch
 import open3d as o3d
@@ -110,6 +111,8 @@ def get_camera_info(cam_file, frame_id):
     return cam_cx, cam_cy, cam_fx, cam_fy
 
 def get_model_symmetry(info_file, model_id):
+    rot = np.eye(3)
+    trans = np.zeros(3)
     with open(info_file, 'r') as file:
         model_info = json.load(file)[str(model_id)]
     if model_info.get('symmetries_continuous') is not None:
@@ -119,7 +122,6 @@ def get_model_symmetry(info_file, model_id):
         angle = np.random.uniform(0, 2 * np.pi)
         rot = rotation_matrix_from_axis(axis, angle)
         trans = np.zeros(3)
-        return rot, trans
     if model_info.get('symmetries_discrete') is not None:
         symmetries = model_info['symmetries_discrete']
         symmetry = symmetries[np.random.randint(0, len(symmetries))]
@@ -130,9 +132,8 @@ def get_model_symmetry(info_file, model_id):
         if np.random.uniform(0., 1.) < 0.5:
             rot = np.eye(3)
             trans = np.zeros(3)
-        else:
-            pass
-        return rot, trans
+
+    return rot, trans
 
 def rotation_matrix_from_axis(axis, angle):
     axis = axis / np.linalg.norm(axis)
@@ -779,3 +780,26 @@ def save_recon_pcd(output_dict, data_dict, log_dir):
 
     return src, ref
 
+import csv
+
+def write_result_csv(output_dict, data_dict, filepath):
+    scene_id = data_dict['scene_id'].item()
+    img_id = data_dict['img_id'].item()
+    obj_id = data_dict['obj_id'].item()
+
+    score = 1.0
+
+    pred_rt = output_dict['pred_rt']
+    quat = pred_rt[:4]
+    rot = Rotation.from_quat(quat)
+    rot_row_wise = rot.as_matrix().flatten()
+
+    trans = (pred_rt[4:] + output_dict['center_ref'].cpu()).numpy() * 1000.0
+    
+    time = 1.0
+
+    with open(filepath, mode='a', newline='') as file:
+        writer = csv.writer(file, delimiter=',')
+        writer.writerow([scene_id, img_id, obj_id, score, ' '.join(map(str, rot_row_wise)), ' '.join(map(str, trans)), time])
+
+    
