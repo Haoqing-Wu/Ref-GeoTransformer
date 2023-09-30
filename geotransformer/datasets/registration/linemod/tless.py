@@ -144,6 +144,8 @@ class TLessDataset(data.Dataset):
 
         
         return {
+            'scene_id': data_dict['scene_id'],
+            'img_id': data_dict['img_id'],
             'obj_id': obj_id,
             'src_points': src_pcd.astype(np.float32),
             'ref_points': tgt_pcd.astype(np.float32),
@@ -234,6 +236,8 @@ class TLessDataset(data.Dataset):
                     rgb = mask_rgb[rmin:rmax, cmin:cmax]
 
                     frame_data = {
+                        'scene_id': obj_id + 1,
+                        'img_id': int(frame_id),
                         'obj_id': obj_id + 1,
                         'src_points': src_pcd.astype(np.float32),
                         'ref_points': tgt_pcd.astype(np.float32),
@@ -247,8 +251,14 @@ class TLessDataset(data.Dataset):
                 with open(self.pickle_root + 'tless_{0}_{1}.pkl'.format(self.mode, str(obj_id + 1)), 'wb') as f:
                     pickle.dump(data, f)
 
-        elif self.mode == 'test':
-            for scene_id in tqdm(range(1, 21)):
+        elif self.mode == 'train_pbr' or self.mode == 'test':
+            if self.mode == 'train_pbr':
+                first = 0
+                last = 50
+            elif self.mode == 'test':
+                first = 1
+                last = 21
+            for scene_id in tqdm(range(first, last)):
                 data = []
                 scene_path = self.base_dir + self.mode + '/' + str(scene_id).zfill(6)
                 depth_path = scene_path + '/depth'
@@ -267,8 +277,12 @@ class TLessDataset(data.Dataset):
                                 str(file) for file in Path(depth_path).glob('*.png')}
                 mask_files = {os.path.splitext(os.path.basename(file))[0]:\
                                 str(file) for file in Path(mask_path).glob('*.png')}
-                rgb_files = {os.path.splitext(os.path.basename(file))[0]:\
-                                str(file) for file in Path(rgb_path).glob('*.png')}
+                if self.mode == 'train_pbr':
+                    rgb_files = {os.path.splitext(os.path.basename(file))[0]:\
+                                    str(file) for file in Path(rgb_path).glob('*.jpg')}
+                elif self.mode == 'test':
+                    rgb_files = {os.path.splitext(os.path.basename(file))[0]:\
+                                    str(file) for file in Path(rgb_path).glob('*.png')}
                 frames = list(depth_files.keys())
 
                 count = 0
@@ -306,7 +320,7 @@ class TLessDataset(data.Dataset):
                         cloud = np.concatenate((pt0, pt1, pt2), axis=1)
                         tgt_pcd = cloud / 1000.0  # scale to meters
                 
-                        tgt_pcd = statistical_outlier_rm(tgt_pcd, num=200)
+                        tgt_pcd = statistical_outlier_rm(tgt_pcd, num=100)
                         if tgt_pcd.shape[0] < 1000:
                             continue
 
@@ -323,6 +337,8 @@ class TLessDataset(data.Dataset):
                         rgb = mask_rgb[rmin:rmax, cmin:cmax]
 
                         frame_data = {
+                            'scene_id': scene_id,
+                            'img_id': int(frame_id),
                             'obj_id': obj_id,
                             'src_points': src_pcd.astype(np.float32),
                             'ref_points': tgt_pcd.astype(np.float32),

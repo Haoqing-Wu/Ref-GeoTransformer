@@ -611,7 +611,7 @@ class IterBasedReconTrainer(BaseTrainer):
         self.before_val()
         summary_board = SummaryBoard(adaptive=True)
         timer = Timer()
-        total_iterations = len(self.val_loader)
+        total_iterations = len(self.val_loader)//10
         sample = np.random.randint(0, total_iterations)
         src_pcd = None
         ref_pcd = None
@@ -640,6 +640,8 @@ class IterBasedReconTrainer(BaseTrainer):
             if iteration == sample:
                 # save the point cloud and corresponding prediction
                 src_pcd, ref_pcd = save_recon_pcd(output_dict, data_dict, log_dir)
+            if iteration == total_iterations:
+                break
 
         self.after_val()
         summary_dict = summary_board.summary()

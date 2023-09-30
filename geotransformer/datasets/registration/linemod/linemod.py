@@ -64,12 +64,19 @@ class LMODataset(data.Dataset):
         # overfitting on a single object
         self.overfit = overfit
         # loaded data
-        self.pickle_file = self.base_dir + 'cache/lm_{0}_{1}.pkl'.format(self.mode, self.points_limit)
-        if os.path.exists(self.pickle_file) and not self.reload_data:
-            with open(self.pickle_file, 'rb') as f:
-                self.data = pickle.load(f)
-        else:
-            self.data = self.get_dataset_from_path()
+        self.data = []
+        self.pickle_root = self.base_dir + 'cache/'
+        if not os.path.exists(self.pickle_root + '*.pkl') and self.reload_data:
+            self.get_dataset_from_path()
+
+        pickle_files = {os.path.splitext(os.path.basename(file))[0]:\
+                                str(file) for file in Path(self.pickle_root).glob('lm_{0}*.pkl'.format(self.mode))}
+        for file in pickle_files:
+            if self.overfit is not None and self.overfit != int(file.split('_')[-1]) and not self.mode == 'train_pbr':
+                continue
+            with open(self.pickle_root + file + '.pkl', 'rb') as f:
+                data = pickle.load(f)
+                self.data.extend(data)
         print('Loaded {0} {1} samples'.format(len(self.data), self.mode))
 
 
@@ -151,96 +158,188 @@ class LMODataset(data.Dataset):
 
 
         model_files = list(Path(model_root).glob('*.ply'))
-        if self.overfit is not None:
-            obj_num = 1
+
+        if self.mode == 'train_pbr':
+            for scene_id in tqdm(range(0, 50)):
+                data = []
+                scene_path = self.base_dir + self.mode + '/' + str(scene_id).zfill(6)
+                depth_path = scene_path + '/depth'
+                mask_path = scene_path + '/mask_visib'
+                rgb_path = scene_path + '/rgb'
+
+                gt_path = '{0}/scene_gt.json'.format(scene_path)
+                cam_path = '{0}/scene_camera.json'.format(scene_path)
+                
+
+                xmap = np.array([[j for i in range(640)] for j in range(480)])
+                ymap = np.array([[i for i in range(640)] for j in range(480)])
+
+
+                depth_files = {os.path.splitext(os.path.basename(file))[0]:\
+                                str(file) for file in Path(depth_path).glob('*.png')}
+                mask_files = {os.path.splitext(os.path.basename(file))[0]:\
+                                str(file) for file in Path(mask_path).glob('*.png')}
+                rgb_files = {os.path.splitext(os.path.basename(file))[0]:\
+                                str(file) for file in Path(rgb_path).glob('*.jpg')}
+                frames = list(depth_files.keys())
+
+                count = 0
+                for frame_id in frames:
+                    cam_cx, cam_cy, cam_fx, cam_fy = get_camera_info(cam_path, int(frame_id))
+                    gt_scene = get_gt_scene(gt_path, int(frame_id))
+                    for idx, gt_obj in enumerate(gt_scene):
+                        obj_id = gt_obj['obj_id']
+                        rot = gt_obj['rot']
+                        trans = gt_obj['trans']
+                        if self.overfit is not None and obj_id != self.overfit:
+                            continue
+
+                        model_id = str(obj_id).zfill(6)
+                        model_path = model_root + '/obj_{0}.ply'.format(model_id)
+                        src_pcd_, _ = sample_point_from_mesh(model_path, samples=10000)
+                        src_pcd = src_pcd_ / 1000
+
+                        depth = np.array(Image.open(str(depth_files[frame_id])))
+                        vis_mask = np.array(Image.open(str(mask_files[frame_id + '_' + str(idx).zfill(6)])))
+                        mask_depth = ma.getmaskarray(ma.masked_not_equal(depth, 0))
+                        mask_label = ma.getmaskarray(ma.masked_equal(vis_mask, np.array(255)))
+                        mask = mask_label * mask_depth	
+                        if (np.sum(mask) == 0):
+                            continue
+                        rmin, rmax, cmin, cmax = get_bbox(mask_to_bbox(mask))
+                        choose = mask[rmin:rmax, cmin:cmax].flatten().nonzero()[0]
+                        depth_masked = depth[rmin:rmax, cmin:cmax].flatten()[choose][:, np.newaxis].astype(np.float32)
+                        xmap_masked = xmap[rmin:rmax, cmin:cmax].flatten()[choose][:, np.newaxis].astype(np.float32)
+                        ymap_masked = ymap[rmin:rmax, cmin:cmax].flatten()[choose][:, np.newaxis].astype(np.float32)
+                        cam_scale = 10.0
+                        pt2 = depth_masked / cam_scale
+                        pt0 = (ymap_masked - cam_cx) * pt2 / cam_fx
+                        pt1 = (xmap_masked - cam_cy) * pt2 / cam_fy
+                        cloud = np.concatenate((pt0, pt1, pt2), axis=1)
+                        tgt_pcd = cloud / 1000.0  # scale to meters
+                
+                        tgt_pcd = statistical_outlier_rm(tgt_pcd, num=100)
+                        if tgt_pcd.shape[0] < 1000:
+                            continue
+
+                        src_pcd = resize_pcd(src_pcd_, self.points_limit)
+                        tgt_pcd = resize_pcd(tgt_pcd, self.points_limit)
+
+                        if (trans.ndim == 1):
+                            trans = trans[:, None]
+
+                        # image processing
+                        rgb_img = np.array(Image.open(str(rgb_files[frame_id])))
+                        mask_rgb_label = np.repeat(np.expand_dims(mask_label, axis=-1), 3, axis=2)
+                        mask_rgb = rgb_img * mask_rgb_label
+                        rgb = mask_rgb[rmin:rmax, cmin:cmax]
+
+                        frame_data = {
+                            'scene_id': scene_id,
+                            'img_id': int(frame_id),
+                            'obj_id': obj_id,
+                            'src_points': src_pcd.astype(np.float32),
+                            'ref_points': tgt_pcd.astype(np.float32),
+                            'rgb': rgb,
+                            'rot': rot.astype(np.float32),
+                            'trans': trans.astype(np.float32)
+                        }
+                        data.append(frame_data)
+
+
+                with open(self.pickle_root + 'lm_{0}_{1}.pkl'.format(self.mode, str(scene_id)), 'wb') as f:
+                    pickle.dump(data, f)
+
         else:
-            obj_num = len(model_files)
-        
-        for obj_id in tqdm(range(obj_num)):
-            
             if self.overfit is not None:
-                obj_id = self.overfit - 1
-            model_id = str(obj_id + 1).zfill(6)
-            #model_path = str(model_files[obj_id])
-            model_path = model_root + '/obj_{0}.ply'.format(model_id)
-            src_pcd_, _ = sample_point_from_mesh(model_path, samples=10000)
-            src_pcd = src_pcd_ / 1000
-
+                obj_num = 1
+            else:
+                obj_num = len(model_files)
             
-            frame_path = frame_root + '/' + model_id
-            depth_path = frame_path + '/depth'
-            mask_path = frame_path + '/mask_visib'
-            rgb_path = frame_path + '/rgb'
+            for obj_id in tqdm(range(obj_num)):
+                data = []
+                if self.overfit is not None:
+                    obj_id = self.overfit - 1
+                model_id = str(obj_id + 1).zfill(6)
+                #model_path = str(model_files[obj_id])
+                model_path = model_root + '/obj_{0}.ply'.format(model_id)
+                src_pcd_, _ = sample_point_from_mesh(model_path, samples=10000)
+                src_pcd = src_pcd_ / 1000
 
-            gt_path = '{0}/scene_gt.json'.format(frame_path)
-            cam_path = '{0}/scene_camera.json'.format(frame_path)
+                
+                frame_path = frame_root + '/' + model_id
+                depth_path = frame_path + '/depth'
+                mask_path = frame_path + '/mask_visib'
+                rgb_path = frame_path + '/rgb'
+
+                gt_path = '{0}/scene_gt.json'.format(frame_path)
+                cam_path = '{0}/scene_camera.json'.format(frame_path)
+                
+
+                xmap = np.array([[j for i in range(640)] for j in range(480)])
+                ymap = np.array([[i for i in range(640)] for j in range(480)])
+
+
+                depth_files = {os.path.splitext(os.path.basename(file))[0]:\
+                                str(file) for file in Path(depth_path).glob('*.png')}
+                mask_files = {os.path.splitext(os.path.basename(file))[0]:\
+                                str(file) for file in Path(mask_path).glob('*.png')}
+                rgb_files = {os.path.splitext(os.path.basename(file))[0]:\
+                                str(file) for file in Path(rgb_path).glob('*.png')}
+                frames = list(depth_files.keys())
+                
+                for frame_id in frames:
+                    cam_cx, cam_cy, cam_fx, cam_fy = get_camera_info(cam_path, int(frame_id))
+                    rot, trans = get_gt(gt_path, int(frame_id))
+
+                    depth = np.array(Image.open(str(depth_files[frame_id])))
+                    vis_mask = np.array(Image.open(str(mask_files[frame_id + '_000000'])))
+                    mask_depth = ma.getmaskarray(ma.masked_not_equal(depth, 0))
+                    mask_label = ma.getmaskarray(ma.masked_equal(vis_mask, np.array(255)))
+                    mask = mask_label * mask_depth	
+
+                    rmin, rmax, cmin, cmax = get_bbox(mask_to_bbox(mask))
+                    choose = mask[rmin:rmax, cmin:cmax].flatten().nonzero()[0]
+                    depth_masked = depth[rmin:rmax, cmin:cmax].flatten()[choose][:, np.newaxis].astype(np.float32)
+                    xmap_masked = xmap[rmin:rmax, cmin:cmax].flatten()[choose][:, np.newaxis].astype(np.float32)
+                    ymap_masked = ymap[rmin:rmax, cmin:cmax].flatten()[choose][:, np.newaxis].astype(np.float32)
+                    cam_scale = 1.0
+                    pt2 = depth_masked / cam_scale
+                    pt0 = (ymap_masked - cam_cx) * pt2 / cam_fx
+                    pt1 = (xmap_masked - cam_cy) * pt2 / cam_fy
+                    cloud = np.concatenate((pt0, pt1, pt2), axis=1)
+                    tgt_pcd = cloud / 1000.0  # scale to meters
+
+                    if self.mode == 'test':
+                        tgt_pcd = statistical_outlier_rm(tgt_pcd, num=100)
+                        
+                    src_pcd = resize_pcd(src_pcd_, self.points_limit)
+                    tgt_pcd = resize_pcd(tgt_pcd, self.points_limit)
+
+                    if (trans.ndim == 1):
+                        trans = trans[:, None]
+
+
+                    # image processing
+                    rgb_img = np.array(Image.open(str(rgb_files[frame_id])))
+                    mask_rgb_label = np.repeat(np.expand_dims(mask_label, axis=-1), 3, axis=2)
+                    mask_rgb = rgb_img * mask_rgb_label
+                    rgb = mask_rgb[rmin:rmax, cmin:cmax]
+
+                    frame_data = {
+                        'scene_id': obj_id + 1,
+                        'img_id': int(frame_id),
+                        'obj_id': obj_id + 1,
+                        'src_points': src_pcd.astype(np.float32),
+                        'ref_points': tgt_pcd.astype(np.float32),
+                        'rgb': rgb,
+                        'rot': rot.astype(np.float32),
+                        'trans': trans.astype(np.float32)
+                    }
+                    #for i in range (1000):
+                    data.append(frame_data)
+                    #break
+                with open(self.pickle_root + 'lm_{0}_{1}.pkl'.format(self.mode, str(obj_id + 1)), 'wb') as f:
+                    pickle.dump(data, f)
             
-
-            xmap = np.array([[j for i in range(640)] for j in range(480)])
-            ymap = np.array([[i for i in range(640)] for j in range(480)])
-
-
-            depth_files = {os.path.splitext(os.path.basename(file))[0]:\
-                            str(file) for file in Path(depth_path).glob('*.png')}
-            mask_files = {os.path.splitext(os.path.basename(file))[0]:\
-                            str(file) for file in Path(mask_path).glob('*.png')}
-            rgb_files = {os.path.splitext(os.path.basename(file))[0]:\
-                            str(file) for file in Path(rgb_path).glob('*.png')}
-            frames = list(depth_files.keys())
-            
-            for frame_id in frames:
-                cam_cx, cam_cy, cam_fx, cam_fy = get_camera_info(cam_path, int(frame_id))
-                rot, trans = get_gt(gt_path, int(frame_id))
-
-                depth = np.array(Image.open(str(depth_files[frame_id])))
-                vis_mask = np.array(Image.open(str(mask_files[frame_id + '_000000'])))
-                mask_depth = ma.getmaskarray(ma.masked_not_equal(depth, 0))
-                mask_label = ma.getmaskarray(ma.masked_equal(vis_mask, np.array(255)))
-                mask = mask_label * mask_depth	
-
-                rmin, rmax, cmin, cmax = get_bbox(mask_to_bbox(mask))
-                choose = mask[rmin:rmax, cmin:cmax].flatten().nonzero()[0]
-                depth_masked = depth[rmin:rmax, cmin:cmax].flatten()[choose][:, np.newaxis].astype(np.float32)
-                xmap_masked = xmap[rmin:rmax, cmin:cmax].flatten()[choose][:, np.newaxis].astype(np.float32)
-                ymap_masked = ymap[rmin:rmax, cmin:cmax].flatten()[choose][:, np.newaxis].astype(np.float32)
-                cam_scale = 1.0
-                pt2 = depth_masked / cam_scale
-                pt0 = (ymap_masked - cam_cx) * pt2 / cam_fx
-                pt1 = (xmap_masked - cam_cy) * pt2 / cam_fy
-                cloud = np.concatenate((pt0, pt1, pt2), axis=1)
-                tgt_pcd = cloud / 1000.0  # scale to meters
-
-                if self.mode == 'test':
-                    tgt_pcd = statistical_outlier_rm(tgt_pcd, num=100)
-                    
-                src_pcd = resize_pcd(src_pcd_, self.points_limit)
-                tgt_pcd = resize_pcd(tgt_pcd, self.points_limit)
-
-                if (trans.ndim == 1):
-                    trans = trans[:, None]
-
-
-                # image processing
-                rgb_img = np.array(Image.open(str(rgb_files[frame_id])))
-                mask_rgb_label = np.repeat(np.expand_dims(mask_label, axis=-1), 3, axis=2)
-                mask_rgb = rgb_img * mask_rgb_label
-                rgb = mask_rgb[rmin:rmax, cmin:cmax]
-
-                frame_data = {
-                    'scene_id': obj_id + 1,
-                    'img_id': int(frame_id),
-                    'obj_id': obj_id + 1,
-                    'src_points': src_pcd.astype(np.float32),
-                    'ref_points': tgt_pcd.astype(np.float32),
-                    'rgb': rgb,
-                    'rot': rot.astype(np.float32),
-                    'trans': trans.astype(np.float32)
-                }
-                #for i in range (1000):
-                data.append(frame_data)
-                #break
-            
-        with open(self.pickle_file, 'wb') as f:
-            pickle.dump(data, f)
-        return data
 

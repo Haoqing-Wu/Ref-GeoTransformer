@@ -38,17 +38,17 @@ ensure_dir(_C.result_csv_dir)
 _C.wandb_ddpm = edict()
 _C.wandb_ddpm.enable = False
 _C.wandb_ddpm.project = "cordi_pose_base"
-_C.wandb_ddpm.name = "lmA_b64_se3_foldnet_8l"
+_C.wandb_ddpm.name = "tless1_b16_se3_foldnet_8l"
 
 # wandb recon
 _C.wandb_recon = edict()
-_C.wandb_recon.enable = False
+_C.wandb_recon.enable = True
 _C.wandb_recon.project = "cordi_recon_base"
-_C.wandb_recon.name = "tlessA_b32_shift_or200_foldnet_plane_k16_d512"
+_C.wandb_recon.name = "tlessA_pbr_b32_shift_or100_foldnet_plane_k16_d512"
 
 # data
 _C.data = edict()
-_C.data.dataset = "linemod"
+_C.data.dataset = "tless"
 
 # train data
 _C.train = edict()
@@ -85,8 +85,8 @@ _C.optim.weight_decay = 1e-6
 _C.optim.warmup_steps = 1000
 _C.optim.eta_init = 0.1
 _C.optim.eta_min = 0.1
-_C.optim.max_iteration = 500000
-_C.optim.snapshot_steps = 20
+_C.optim.max_iteration = 1000000
+_C.optim.snapshot_steps = 5000
 _C.optim.grad_acc_steps = 1
 
 # model - backbone
