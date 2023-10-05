@@ -117,18 +117,14 @@ class ChamferLoss(nn.Module):
         return loss_1 + loss_2
     
     def forward(self, output_dict, data_dict):
-        ref_recon = output_dict['ref_recon']
-        src_recon = output_dict['src_recon']
-        ref_points = data_dict['ref_points']
+        recon = output_dict['recon']
         src_points = data_dict['src_points']
-        batch_size = ref_points.shape[0]
-        loss_ref = self.loss(ref_recon, ref_points)
-        loss_src = self.loss(src_recon, src_points)
-        loss = loss_ref + loss_src
+        transform = data_dict['transform']
+        gt_src_points = apply_transform(src_points, transform)
+        loss = self.loss(recon, gt_src_points)
+
         return {
-            'loss': loss,
-            'loss_ref': loss_ref,
-            'loss_src': loss_src,
+            'loss': loss
         }
 
 
@@ -325,8 +321,8 @@ class DDPMEvaluator(nn.Module):
         transform = data_dict['transform_raw'].squeeze(0)
         pred_rt = output_dict['pred_rt']
         quat = pred_rt[:4]
-        trans = pred_rt[4:] + output_dict['center_ref'].cpu()
-        #trans = pred_rt[4:]
+        #trans = pred_rt[4:] + output_dict['center_ref'].cpu()
+        trans = pred_rt[4:]
         # if nan in quaternion, set it to 1
         if torch.isnan(quat).any():
             quat = torch.tensor([1.0, 0.0, 0.0, 0.0]).cpu()

@@ -394,15 +394,13 @@ class ReconNet(nn.Module):
         src_points = input['src_points']
         ref_feats = self.encoder(ref_points)
         src_feats = self.encoder(src_points)
-        feats = (ref_feats + src_feats).squeeze(1)
-        ref_recon = self.decoder(ref_feats)
-        src_recon = self.decoder(src_feats)
+        feats = ref_feats + src_feats
+        recon = self.decoder(feats)
         return {
             'ref_feats': ref_feats,
             'src_feats': src_feats,
-            'feats': feats,
-            'ref_recon': ref_recon,
-            'src_recon': src_recon
+            'feats': feats.squeeze(1),
+            'recon': recon
         }
 
 def create_model(cfg):

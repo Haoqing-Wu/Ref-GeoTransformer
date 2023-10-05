@@ -704,8 +704,8 @@ def save_transformed_pcd(output_dict, data_dict, log_dir):
     transform = data_dict['transform_raw'].squeeze(0)
     pred_rt = output_dict['pred_rt']
     quat = pred_rt[:4]
-    trans = pred_rt[4:] + output_dict['center_ref'].cpu()
-    #trans = pred_rt[4:]
+    #trans = pred_rt[4:] + output_dict['center_ref'].cpu()
+    trans = pred_rt[4:]
 
     # if nan in quaternion, set it to 1
     if torch.isnan(quat).any():
@@ -744,42 +744,35 @@ def save_transformed_pcd(output_dict, data_dict, log_dir):
 
 def save_recon_pcd(output_dict, data_dict, log_dir):
 
-    src_points = data_dict['src_points'].squeeze(0).cpu().numpy()
-    ref_points = data_dict['ref_points'].squeeze(0).cpu().numpy()
-    src_recon = output_dict['src_recon'].squeeze(0).cpu().numpy()
-    ref_recon = output_dict['ref_recon'].squeeze(0).cpu().numpy()
+    src_points = data_dict['src_points'].squeeze(0)
+    tgt_points = data_dict['ref_points'].squeeze(0).cpu().numpy()
+    transform = data_dict['transform_raw'].squeeze(0)
+    gt_src_points = apply_transform(src_points, transform).cpu().numpy()
+    recon = output_dict['recon'].squeeze(0).cpu().numpy()
+
+    tgt_pcd_plt = o3d.geometry.PointCloud()
+    tgt_pcd_plt.points = o3d.utility.Vector3dVector(tgt_points)
+    o3d.io.write_point_cloud(log_dir + "tgt_pcd_plt.ply", tgt_pcd_plt)
 
 
     src_pcd_plt = o3d.geometry.PointCloud()
-    src_pcd_plt.points = o3d.utility.Vector3dVector(src_points)
-    o3d.io.write_point_cloud(log_dir + "src_pcd_plt.ply", src_pcd_plt)
-    ref_pcd_plt = o3d.geometry.PointCloud()
-    ref_pcd_plt.points = o3d.utility.Vector3dVector(ref_points)
-    o3d.io.write_point_cloud(log_dir + "ref_pcd_plt.ply", ref_pcd_plt)
+    src_pcd_plt.points = o3d.utility.Vector3dVector(gt_src_points)
+    o3d.io.write_point_cloud(log_dir + "gt_src_pcd_plt.ply", src_pcd_plt)
 
-    src_recon_pcd_plt = o3d.geometry.PointCloud()
-    src_recon_pcd_plt.points = o3d.utility.Vector3dVector(src_recon)
-    o3d.io.write_point_cloud(log_dir + "src_recon_pcd_plt.ply", src_recon_pcd_plt)
-    ref_recon_pcd_plt = o3d.geometry.PointCloud()
-    ref_recon_pcd_plt.points = o3d.utility.Vector3dVector(ref_recon)
-    o3d.io.write_point_cloud(log_dir + "ref_recon_pcd_plt.ply", ref_recon_pcd_plt)
+    recon_pcd_plt = o3d.geometry.PointCloud()
+    recon_pcd_plt.points = o3d.utility.Vector3dVector(recon)
+    o3d.io.write_point_cloud(log_dir + "recon_pcd_plt.ply", recon_pcd_plt)
 
-    color_src_gt = np.array([[0, 255, 0] for i in range(src_points.shape[0])])
-    color_src_recon = np.array([[255, 0, 0] for i in range(src_recon.shape[0])])
+    color_src_gt = np.array([[0, 255, 0] for i in range(gt_src_points.shape[0])])
+    color_src_recon = np.array([[255, 0, 0] for i in range(recon.shape[0])])
+    color_tgt = np.array([[0, 0, 255] for i in range(tgt_points.shape[0])])
 
-    src_gt = np.concatenate((src_points, color_src_gt), axis=1)
-    src_recon = np.concatenate((src_recon, color_src_recon), axis=1)
-    src = np.concatenate((src_gt, src_recon), axis=0)
+    tgt = np.concatenate((tgt_points, color_tgt), axis=1)
+    src_gt = np.concatenate((gt_src_points, color_src_gt), axis=1)
+    recon = np.concatenate((recon, color_src_recon), axis=1)
+    vis = np.concatenate((src_gt, recon, tgt), axis=0)
 
-    color_ref_gt = np.array([[0, 255, 0] for i in range(ref_points.shape[0])])
-    color_ref_recon = np.array([[255, 0, 0] for i in range(ref_recon.shape[0])])
-
-    ref_gt = np.concatenate((ref_points, color_ref_gt), axis=1)
-    ref_recon = np.concatenate((ref_recon, color_ref_recon), axis=1)
-    ref = np.concatenate((ref_gt, ref_recon), axis=0)
-    
-
-    return src, ref
+    return vis
 
 import csv
 

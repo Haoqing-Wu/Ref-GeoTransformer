@@ -639,7 +639,7 @@ class IterBasedReconTrainer(BaseTrainer):
             #save_transformed_pcd(output_dict, data_dict)
             if iteration == sample:
                 # save the point cloud and corresponding prediction
-                src_pcd, ref_pcd = save_recon_pcd(output_dict, data_dict, log_dir)
+                vis = save_recon_pcd(output_dict, data_dict, log_dir)
             if iteration == total_iterations:
                 break
 
@@ -652,10 +652,7 @@ class IterBasedReconTrainer(BaseTrainer):
             wandb.log({
                 "Val": {
                     "loss": summary_dict['loss'],
-                    "loss_ref": summary_dict['loss_ref'],
-                    "loss_src": summary_dict['loss_src'],
-                    "src_pcd": wandb.Object3D(src_pcd),
-                    "ref_pcd": wandb.Object3D(ref_pcd)
+                    "src_pcd": wandb.Object3D(vis)
                 }
                 
             })
@@ -693,7 +690,7 @@ class IterBasedReconTrainer(BaseTrainer):
             torch.cuda.empty_cache()
             if iteration == sample:
                 # save the point cloud and corresponding prediction
-                src_pcd, ref_pcd = save_recon_pcd(output_dict, data_dict, log_dir)
+                vis = save_recon_pcd(output_dict, data_dict, log_dir)
 
         self.after_val()
         summary_dict = summary_board.summary()
@@ -704,10 +701,7 @@ class IterBasedReconTrainer(BaseTrainer):
             wandb.log({
                 "Test": {
                     "loss": summary_dict['loss'],
-                    "loss_ref": summary_dict['loss_ref'],
-                    "loss_src": summary_dict['loss_src'],
-                    "src_pcd": wandb.Object3D(src_pcd),
-                    "ref_pcd": wandb.Object3D(ref_pcd)
+                    "vis": wandb.Object3D(vis)
                 }
             })
         self.set_train_mode()
@@ -769,8 +763,6 @@ class IterBasedReconTrainer(BaseTrainer):
                     wandb.log({
                         "Train": {
                             "loss": summary_dict['loss'],
-                            "loss_ref": summary_dict['loss_ref'],
-                            "loss_src": summary_dict['loss_src'],
                             "lr": self.get_lr()
                         }    
                     })

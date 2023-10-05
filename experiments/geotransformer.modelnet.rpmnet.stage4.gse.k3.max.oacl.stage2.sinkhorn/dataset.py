@@ -14,7 +14,7 @@ def train_valid_data_loader(cfg, distributed):
         dataset = LMODataset(
             data_folder='./data/',
             reload_data=False,
-            data_augmentation=False,
+            data_augmentation=True,
             rotated=False,
             rot_factor=1.0,
             augment_noise=0.0005,
