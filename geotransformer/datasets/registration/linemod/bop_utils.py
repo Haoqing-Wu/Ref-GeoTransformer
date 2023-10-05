@@ -705,6 +705,7 @@ def save_transformed_pcd(output_dict, data_dict, log_dir):
     pred_rt = output_dict['pred_rt']
     quat = pred_rt[:4]
     trans = pred_rt[4:] + output_dict['center_ref'].cpu()
+    #trans = pred_rt[4:]
 
     # if nan in quaternion, set it to 1
     if torch.isnan(quat).any():

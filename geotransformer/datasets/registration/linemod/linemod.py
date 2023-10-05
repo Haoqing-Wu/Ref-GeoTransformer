@@ -85,11 +85,17 @@ class LMODataset(data.Dataset):
 
     def __getitem__(self, index):
         data_dict = self.data[index]
+        obj_id = data_dict['obj_id']
         src_pcd = data_dict['src_points']
         tgt_pcd = data_dict['ref_points']
         rot = data_dict['rot']
         trans = data_dict['trans']
         rgb = data_dict['rgb']
+
+        model_info_root = self.base_dir + 'models/models_info.json'
+        sym_rot, sym_trans = get_model_symmetry(model_info_root, obj_id)
+        rot, trans = get_transformation_indirect(sym_rot, sym_trans, rot, trans)
+        src_pcd = transformation_pcd(src_pcd, sym_rot, sym_trans)
 
         if self.data_augmentation:
             # rotate the point cloud
@@ -111,12 +117,12 @@ class LMODataset(data.Dataset):
 
         # calculate the center of ref_pcd and move it to the origin
         tgt_pcd_raw = tgt_pcd.copy()
-        trans_raw = trans.reshape(-1).copy()
+        trans_raw = trans.copy()
         center_ref = np.mean(tgt_pcd, axis=0)
         tgt_pcd -= center_ref
-        trans -= center_ref.reshape(3, 1)
+        trans -= center_ref
 
-        trans = trans.reshape(-1)
+        #trans = trans.reshape(-1)
         r = Rotation.from_matrix(rot)
         quaternion = r.as_quat()
         rt = np.concatenate((quaternion, trans), axis=0)
@@ -138,7 +144,7 @@ class LMODataset(data.Dataset):
         return {
             'scene_id': data_dict['scene_id'],
             'img_id': data_dict['img_id'],
-            'obj_id': data_dict['obj_id'],
+            'obj_id': obj_id,
             'src_points': src_pcd.astype(np.float32),
             'ref_points': tgt_pcd.astype(np.float32),
             'ref_points_raw': tgt_pcd_raw.astype(np.float32),

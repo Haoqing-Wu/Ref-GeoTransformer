@@ -392,7 +392,7 @@ class IterBasedDDPMTrainer(BaseTrainer):
         summary_board = SummaryBoard(adaptive=True)
         timer = Timer()
         #total_iterations = len(self.test_loader)
-        total_iterations = 50
+        total_iterations = 100
         log_dir = self.result_pcd_dir + "/test_"
         csv_file = self.result_csv_dir + "/test_" + str(self.iteration) + "_result.csv"
 
@@ -417,7 +417,7 @@ class IterBasedDDPMTrainer(BaseTrainer):
             )
             pbar.set_description(message)
             torch.cuda.empty_cache()
-            if iteration == 50:
+            if iteration == 100:
                 # save the point cloud and corresponding prediction
                 
                 est_tran_pcd_plt = save_transformed_pcd(output_dict, data_dict, log_dir)
@@ -450,7 +450,7 @@ class IterBasedDDPMTrainer(BaseTrainer):
         self.load_pretrained_model(osp.join(self.snapshot_encoder_dir, 'snapshot.pth.tar'))
 
         if self.args.resume:
-            self.load_snapshot(osp.join(self.snapshot_ddpm_dir, 'snapshot.pth.tar'))
+            self.load_snapshot(osp.join(self.snapshot_ddpm_dir, 'iter-550000.pth.tar'))
         elif self.args.snapshot is not None:
             self.load_snapshot(self.args.snapshot)
         self.set_train_mode()

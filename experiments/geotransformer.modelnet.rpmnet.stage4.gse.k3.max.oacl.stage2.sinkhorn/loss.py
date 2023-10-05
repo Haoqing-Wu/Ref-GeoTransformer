@@ -326,6 +326,7 @@ class DDPMEvaluator(nn.Module):
         pred_rt = output_dict['pred_rt']
         quat = pred_rt[:4]
         trans = pred_rt[4:] + output_dict['center_ref'].cpu()
+        #trans = pred_rt[4:]
         # if nan in quaternion, set it to 1
         if torch.isnan(quat).any():
             quat = torch.tensor([1.0, 0.0, 0.0, 0.0]).cpu()

@@ -14,7 +14,7 @@ def train_valid_data_loader(cfg, distributed):
         dataset = LMODataset(
             data_folder='./data/',
             reload_data=False,
-            data_augmentation=True,
+            data_augmentation=False,
             rotated=False,
             rot_factor=1.0,
             augment_noise=0.0005,
@@ -36,8 +36,8 @@ def train_valid_data_loader(cfg, distributed):
     elif cfg.data.dataset == 'tless':
         dataset = TLessDataset(
             data_folder='./data/',
-            reload_data=True,
-            data_augmentation=True,
+            reload_data=False,
+            data_augmentation=False,
             rotated=False,
             rot_factor=1.0,
             augment_noise=0.0005,
@@ -47,7 +47,7 @@ def train_valid_data_loader(cfg, distributed):
         )
         test_dataset = TLessDataset(
             data_folder='./data/',
-            reload_data=True,
+            reload_data=False,
             data_augmentation=False,
             rotated=False,
             rot_factor=1.0,
