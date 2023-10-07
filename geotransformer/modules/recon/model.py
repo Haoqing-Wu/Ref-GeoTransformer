@@ -391,15 +391,10 @@ class ReconNet(nn.Module):
 
     def forward(self, input):
         ref_points = input['ref_points']
-        src_points = input['src_points']
-        ref_feats = self.encoder(ref_points)
-        src_feats = self.encoder(src_points)
-        feats = ref_feats + src_feats
+        feats = self.encoder(ref_points)       
         recon = self.decoder(feats)
         return {
-            'ref_feats': ref_feats,
-            'src_feats': src_feats,
-            'feats': feats.squeeze(1),
+            'feats': feats,
             'recon': recon
         }
 

@@ -44,7 +44,7 @@ _C.wandb_ddpm.name = "tlessA_pbr_b16_se3_dino_foldnet_8l"
 _C.wandb_recon = edict()
 _C.wandb_recon.enable = True
 _C.wandb_recon.project = "cordi_recon_comp"
-_C.wandb_recon.name = "lmA_pbr_b32_or100_foldnet_plane_k16_d512"
+_C.wandb_recon.name = "lm6_pbr_b32_or100_foldnet_plane_k16_d512"
 
 # data
 _C.data = edict()
@@ -85,7 +85,7 @@ _C.optim.weight_decay = 1e-6
 _C.optim.warmup_steps = 1000
 _C.optim.eta_init = 0.1
 _C.optim.eta_min = 0.1
-_C.optim.max_iteration = 1000000
+_C.optim.max_iteration = 3000000
 _C.optim.snapshot_steps = 5000
 _C.optim.grad_acc_steps = 1
 

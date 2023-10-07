@@ -788,7 +788,8 @@ def write_result_csv(output_dict, data_dict, filepath):
     rot = Rotation.from_quat(quat)
     rot_row_wise = rot.as_matrix().flatten()
 
-    trans = (pred_rt[4:] + output_dict['center_ref'].cpu()).numpy() * 1000.0
+    #trans = (pred_rt[4:] + output_dict['center_ref'].cpu()).numpy() * 1000.0
+    trans = pred_rt[4:].numpy() * 1000.0
     
     time = 1.0
 

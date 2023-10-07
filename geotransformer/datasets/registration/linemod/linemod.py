@@ -65,7 +65,10 @@ class LMODataset(data.Dataset):
         self.overfit = overfit
         # loaded data
         self.data = []
-        self.pickle_root = self.base_dir + 'cache/'
+        if self.overfit is not None:
+            self.pickle_root = self.base_dir + 'cache/overfit/'
+        else:
+            self.pickle_root = self.base_dir + 'cache/'
         if not os.path.exists(self.pickle_root + '*.pkl') and self.reload_data:
             self.get_dataset_from_path()
 

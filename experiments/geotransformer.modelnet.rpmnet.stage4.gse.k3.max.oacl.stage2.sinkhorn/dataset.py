@@ -13,25 +13,25 @@ def train_valid_data_loader(cfg, distributed):
     if cfg.data.dataset == 'linemod':
         dataset = LMODataset(
             data_folder='./data/',
-            reload_data=False,
+            reload_data=True,
             data_augmentation=True,
             rotated=False,
             rot_factor=1.0,
             augment_noise=0.0005,
             points_limit=1000,
             mode='train_pbr',
-            overfit=None,
+            overfit=6,
         )
         test_dataset = LMODataset(
             data_folder='./data/',
-            reload_data=False,
+            reload_data=True,
             data_augmentation=False,
             rotated=False,
             rot_factor=1.0,
             augment_noise=0.0005,
             points_limit=1000,
             mode='test',
-            overfit=None,
+            overfit=6,
         )
     elif cfg.data.dataset == 'tless':
         dataset = TLessDataset(
