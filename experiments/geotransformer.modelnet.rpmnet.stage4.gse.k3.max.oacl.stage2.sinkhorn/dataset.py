@@ -13,28 +13,16 @@ def train_valid_data_loader(cfg, distributed):
     if cfg.data.dataset == 'linemod':
         dataset = LMODataset(
             data_folder='./data/',
-            reload_data=True,
+            reload_data=False,
             data_augmentation=True,
             rotated=False,
             rot_factor=1.0,
             augment_noise=0.0005,
             points_limit=1000,
             mode='train_pbr',
-            overfit=6,
+            overfit=None,
         )
         test_dataset = LMODataset(
-            data_folder='./data/',
-            reload_data=True,
-            data_augmentation=False,
-            rotated=False,
-            rot_factor=1.0,
-            augment_noise=0.0005,
-            points_limit=1000,
-            mode='test',
-            overfit=6,
-        )
-    elif cfg.data.dataset == 'tless':
-        dataset = TLessDataset(
             data_folder='./data/',
             reload_data=False,
             data_augmentation=False,
@@ -42,8 +30,20 @@ def train_valid_data_loader(cfg, distributed):
             rot_factor=1.0,
             augment_noise=0.0005,
             points_limit=1000,
-            mode='train_pbr',
+            mode='test',
             overfit=None,
+        )
+    elif cfg.data.dataset == 'tless':
+        dataset = TLessDataset(
+            data_folder='./data/',
+            reload_data=False,
+            data_augmentation=True,
+            rotated=False,
+            rot_factor=1.0,
+            augment_noise=0.0005,
+            points_limit=1000,
+            mode='train_pbr',
+            overfit=1,
         )
         test_dataset = TLessDataset(
             data_folder='./data/',
@@ -54,7 +54,7 @@ def train_valid_data_loader(cfg, distributed):
             augment_noise=0.0005,
             points_limit=1000,
             mode='test',
-            overfit=None,
+            overfit=1,
         )
     else:
         raise NotImplementedError

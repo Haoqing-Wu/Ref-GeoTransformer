@@ -63,7 +63,7 @@ class DDPMTrainer(IterBasedDDPMTrainer):
     def train_step(self, iteration, data_dict):
         with torch.no_grad():
             feat_2d = self.dino_model(data_dict['rgb'])
-            feat_3d = self.encoder_model(data_dict).get('feats')
+            feat_3d = self.encoder_model(data_dict).get('feats').squeeze(1)
         data_dict['feat_2d'] = feat_2d
         data_dict['feat_3d'] = feat_3d
         loss_dict = self.model.get_loss(data_dict)
@@ -71,7 +71,7 @@ class DDPMTrainer(IterBasedDDPMTrainer):
 
     def val_step(self, iteration, data_dict):
         feat_2d = self.dino_model(data_dict['rgb'])
-        feat_3d = self.encoder_model(data_dict).get('feats')
+        feat_3d = self.encoder_model(data_dict).get('feats').squeeze(1)
         data_dict['feat_2d'] = feat_2d.squeeze(0)
         data_dict['feat_3d'] = feat_3d.squeeze(0)
         output_dict = self.model.sample(data_dict)

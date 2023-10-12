@@ -279,7 +279,7 @@ class IterBasedDDPMTrainer(BaseTrainer):
         self.result_csv_dir = cfg.result_csv_dir
         self.wandb_enable = cfg.wandb_ddpm.enable
 
-        if self.wandb_enable:
+        if self.wandb_enable and (self.local_rank == 0 or self.local_rank == -1):
             wandb.init(
                 project=cfg.wandb_ddpm.project,
                 name=cfg.wandb_ddpm.name,
@@ -373,7 +373,7 @@ class IterBasedDDPMTrainer(BaseTrainer):
         message = '[Val] ' + get_log_string(summary_dict, iteration=self.iteration, timer=timer)
         self.logger.critical(message)
         self.write_event('val', summary_dict, self.iteration // self.snapshot_steps)
-        if self.wandb_enable:
+        if self.wandb_enable and (self.local_rank == 0 or self.local_rank == -1):
             wandb.log({
                 "Val": {
                     "RRE": summary_dict['RRE'],
@@ -429,7 +429,7 @@ class IterBasedDDPMTrainer(BaseTrainer):
         message = '[Test] ' + get_log_string(summary_dict, iteration=self.iteration, timer=timer)
         self.logger.critical(message)
         self.write_event('test', summary_dict, self.iteration // self.snapshot_steps)
-        if self.wandb_enable:
+        if self.wandb_enable and (self.local_rank == 0 or self.local_rank == -1):
             wandb.log({
                 "Test": {
                     "RRE": summary_dict['RRE'],
@@ -447,10 +447,10 @@ class IterBasedDDPMTrainer(BaseTrainer):
         assert self.val_loader is not None
 
         # load pretrained encoder -> self.encoder_model
-        self.load_pretrained_model(osp.join(self.snapshot_encoder_dir, 'snapshot.pth.tar'))
+        self.load_pretrained_model(osp.join(self.snapshot_encoder_dir, 'snapshot_comp_lm6.pth.tar'))
 
         if self.args.resume:
-            self.load_snapshot(osp.join(self.snapshot_ddpm_dir, 'iter-550000.pth.tar'))
+            self.load_snapshot(osp.join(self.snapshot_ddpm_dir, 'snapshot_pose_lm6.pth.tar'))
         elif self.args.snapshot is not None:
             self.load_snapshot(self.args.snapshot)
         self.set_train_mode()
@@ -500,7 +500,7 @@ class IterBasedDDPMTrainer(BaseTrainer):
                 )
                 self.logger.info(message)
                 self.write_event('train', summary_dict, self.iteration)
-                if self.wandb_enable:
+                if self.wandb_enable and (self.local_rank == 0 or self.local_rank == -1):
                     wandb.log({
                         "Train": {
                             "loss": summary_dict['loss'],
@@ -555,7 +555,7 @@ class IterBasedReconTrainer(BaseTrainer):
         self.result_csv_dir = cfg.result_csv_dir
         self.wandb_enable = cfg.wandb_recon.enable
 
-        if self.wandb_enable:
+        if self.wandb_enable and (self.local_rank == 0 or self.local_rank == -1):
             wandb.init(
                 project=cfg.wandb_recon.project,
                 name=cfg.wandb_recon.name,
@@ -648,7 +648,7 @@ class IterBasedReconTrainer(BaseTrainer):
         message = '[Val] ' + get_log_string(summary_dict, iteration=self.iteration, timer=timer)
         self.logger.critical(message)
         self.write_event('val', summary_dict, self.iteration // self.snapshot_steps)
-        if self.wandb_enable:
+        if self.wandb_enable and (self.local_rank == 0 or self.local_rank == -1):
             wandb.log({
                 "Val": {
                     "loss": summary_dict['loss'],
@@ -697,7 +697,7 @@ class IterBasedReconTrainer(BaseTrainer):
         message = '[Test] ' + get_log_string(summary_dict, iteration=self.iteration, timer=timer)
         self.logger.critical(message)
         self.write_event('test', summary_dict, self.iteration // self.snapshot_steps)
-        if self.wandb_enable:
+        if self.wandb_enable and (self.local_rank == 0 or self.local_rank == -1):
             wandb.log({
                 "Test": {
                     "loss": summary_dict['loss'],
@@ -759,7 +759,7 @@ class IterBasedReconTrainer(BaseTrainer):
                 )
                 self.logger.info(message)
                 self.write_event('train', summary_dict, self.iteration)
-                if self.wandb_enable:
+                if self.wandb_enable and (self.local_rank == 0 or self.local_rank == -1):
                     wandb.log({
                         "Train": {
                             "loss": summary_dict['loss'],

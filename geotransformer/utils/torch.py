@@ -214,6 +214,7 @@ def load_pretrained_weights_dino(model, pretrained_weights, checkpoint_key, mode
         if url is not None:
             print("Since no pretrained weights have been provided, we load the reference pretrained DINO weights.")
             state_dict = torch.hub.load_state_dict_from_url(url="https://dl.fbaipublicfiles.com/dino/" + url)
+            #state_dict = OrderedDict([('module.' + key, value) for key, value in state_dict.items()])
             model.load_state_dict(state_dict, strict=True)
         else:
             print("There is no reference weights available for this model => We use random weights.")

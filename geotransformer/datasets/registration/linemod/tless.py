@@ -65,7 +65,10 @@ class TLessDataset(data.Dataset):
         self.overfit = overfit
         # loaded data
         self.data = []
-        self.pickle_root = self.base_dir + 'cache/'
+        if self.overfit is not None:
+            self.pickle_root = self.base_dir + 'cache/overfit/'
+        else:
+            self.pickle_root = self.base_dir + 'cache/'
         if not os.path.exists(self.pickle_root + '*.pkl') and self.reload_data:
             self.get_dataset_from_path()
 
@@ -121,8 +124,8 @@ class TLessDataset(data.Dataset):
         tgt_pcd_raw = tgt_pcd.copy()
         trans_raw = trans.copy()
         center_ref = np.mean(tgt_pcd, axis=0)
-        tgt_pcd -= center_ref
-        trans -= center_ref
+        #tgt_pcd -= center_ref
+        #trans -= center_ref
 
         #trans = trans.reshape(-1)
         r = Rotation.from_matrix(rot)
