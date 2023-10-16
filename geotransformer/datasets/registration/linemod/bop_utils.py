@@ -700,19 +700,12 @@ def debug_save_pcd(pcd, dir):
     pcd_o3d.points = o3d.utility.Vector3dVector(pcd)
     o3d.io.write_point_cloud(dir, pcd_o3d)
 
-def save_transformed_pcd(output_dict, data_dict, log_dir):
+def save_transformed_pcd(output_dict, data_dict, log_dir, level):
     transform = data_dict['transform_raw'].squeeze(0)
-    pred_rt = output_dict['pred_rt']
-    quat = pred_rt[:4]
-    #trans = pred_rt[4:] + output_dict['center_ref'].cpu()
-    trans = pred_rt[4:]
-
-    # if nan in quaternion, set it to 1
-    if torch.isnan(quat).any():
-        quat = torch.tensor([1.0, 0.0, 0.0, 0.0]).cpu()
-    r = Rotation.from_quat(quat)
-    rot = r.as_matrix()
-    est_transform = torch.from_numpy(get_transform_from_rotation_translation(rot, trans).astype(np.float32)).cuda()
+    if level == 'coarse':
+        est_transform = output_dict['coarse_trans']
+    elif level == 'refined':
+        est_transform = output_dict['refined_trans']
 
     src_points = data_dict['src_points'].squeeze(0)
     ref_points = data_dict['ref_points'].squeeze(0)
@@ -783,13 +776,11 @@ def write_result_csv(output_dict, data_dict, filepath):
 
     score = 1.0
 
-    pred_rt = output_dict['pred_rt']
-    quat = pred_rt[:4]
-    rot = Rotation.from_quat(quat)
-    rot_row_wise = rot.as_matrix().flatten()
+    trans = output_dict['refined_trans'].cpu().numpy()
+    rot = trans[:3, :3]
+    rot_row_wise = rot.flatten()
 
-    #trans = (pred_rt[4:] + output_dict['center_ref'].cpu()).numpy() * 1000.0
-    trans = pred_rt[4:].numpy() * 1000.0
+    trans = trans[:3, 3] * 1000.0
     
     time = 1.0
 

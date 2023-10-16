@@ -365,7 +365,8 @@ class IterBasedDDPMTrainer(BaseTrainer):
             if iteration == 30:
                 # save the point cloud and corresponding prediction
                 
-                est_tran_pcd_plt = save_transformed_pcd(output_dict, data_dict, log_dir)
+                est_tran_pcd_plt_c = save_transformed_pcd(output_dict, data_dict, log_dir, 'coarse')
+                est_tran_pcd_plt_r = save_transformed_pcd(output_dict, data_dict, log_dir, 'refined')
                 break
 
         self.after_val()
@@ -376,11 +377,16 @@ class IterBasedDDPMTrainer(BaseTrainer):
         if self.wandb_enable and (self.local_rank == 0 or self.local_rank == -1):
             wandb.log({
                 "Val": {
-                    "RRE": summary_dict['RRE'],
-                    "RTE": summary_dict['RTE'],
-                    "RMSE": summary_dict['RMSE'],
-                    "RR": summary_dict['RR'],
-                    "Est_pose": wandb.Object3D(est_tran_pcd_plt)
+                    "RRE_C": summary_dict['RRE_C'],
+                    "RTE_C": summary_dict['RTE_C'],
+                    "RMSE_C": summary_dict['RMSE_C'],
+                    "RR_C": summary_dict['RR_C'],
+                    "RRE_R": summary_dict['RRE_R'],
+                    "RTE_R": summary_dict['RTE_R'],
+                    "RMSE_R": summary_dict['RMSE_R'],
+                    "RR_R": summary_dict['RR_R'],
+                    "Est_pose_C": wandb.Object3D(est_tran_pcd_plt_c),
+                    "Est_pose_R": wandb.Object3D(est_tran_pcd_plt_r)
                 }
                 
             })
@@ -420,7 +426,8 @@ class IterBasedDDPMTrainer(BaseTrainer):
             if iteration == 100:
                 # save the point cloud and corresponding prediction
                 
-                est_tran_pcd_plt = save_transformed_pcd(output_dict, data_dict, log_dir)
+                est_tran_pcd_plt_c = save_transformed_pcd(output_dict, data_dict, log_dir, 'coarse')
+                est_tran_pcd_plt_r = save_transformed_pcd(output_dict, data_dict, log_dir, 'refined')
 
                 break
 
@@ -432,12 +439,16 @@ class IterBasedDDPMTrainer(BaseTrainer):
         if self.wandb_enable and (self.local_rank == 0 or self.local_rank == -1):
             wandb.log({
                 "Test": {
-                    "RRE": summary_dict['RRE'],
-                    "RTE": summary_dict['RTE'],
-                    "RMSE": summary_dict['RMSE'],
-                    "RR": summary_dict['RR'],
-                    "Est_pose": wandb.Object3D(est_tran_pcd_plt)
-                                
+                    "RRE_C": summary_dict['RRE_C'],
+                    "RTE_C": summary_dict['RTE_C'],
+                    "RMSE_C": summary_dict['RMSE_C'],
+                    "RR_C": summary_dict['RR_C'],
+                    "RRE_R": summary_dict['RRE_R'],
+                    "RTE_R": summary_dict['RTE_R'],
+                    "RMSE_R": summary_dict['RMSE_R'],
+                    "RR_R": summary_dict['RR_R'],
+                    "Est_pose_C": wandb.Object3D(est_tran_pcd_plt_c),
+                    "Est_pose_R": wandb.Object3D(est_tran_pcd_plt_r)        
                 }
             })
         self.set_train_mode()

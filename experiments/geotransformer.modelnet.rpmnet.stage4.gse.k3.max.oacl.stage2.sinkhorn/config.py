@@ -38,11 +38,11 @@ ensure_dir(_C.result_csv_dir)
 _C.wandb_ddpm = edict()
 _C.wandb_ddpm.enable = False
 _C.wandb_ddpm.project = "cordi_pose_base"
-_C.wandb_ddpm.name = "lm6_pbr_b64_se3_dino_foldnet_8l"
+_C.wandb_ddpm.name = "E_lm6_pbr_b16_L_se3_dino_foldnet_8l_icp"
 
 # wandb recon
 _C.wandb_recon = edict()
-_C.wandb_recon.enable = True
+_C.wandb_recon.enable = False
 _C.wandb_recon.project = "cordi_recon_comp"
 _C.wandb_recon.name = "D_lm_pbr_b32_or100_foldnet_plane_k16_d512"
 
@@ -52,7 +52,7 @@ _C.data.dataset = "linemod"
 
 # train data
 _C.train = edict()
-_C.train.batch_size = 32
+_C.train.batch_size = 16
 _C.train.num_workers = 8
 _C.train.noise_magnitude = 0.05
 _C.train.class_indices = "all"
@@ -85,8 +85,8 @@ _C.optim.weight_decay = 1e-6
 _C.optim.warmup_steps = 1000
 _C.optim.eta_init = 0.1
 _C.optim.eta_min = 0.01
-_C.optim.max_iteration = 2000000
-_C.optim.snapshot_steps = 5000
+_C.optim.max_iteration = 1000000
+_C.optim.snapshot_steps = 50
 _C.optim.grad_acc_steps = 1
 
 # model - backbone

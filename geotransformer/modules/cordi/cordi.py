@@ -1,4 +1,5 @@
 import torch
+import open3d as o3d
 
 from torch.nn import Module, Linear, ReLU
 from geotransformer.modules.cordi.ddpm import *
@@ -199,7 +200,30 @@ class Cordi(Module):
             'center_ref': d_dict.get('center_ref').squeeze(0),
             'pred_rt': pred_rt.squeeze(0)     
             }
-        
+
+    def refine(self, output_dict):
+
+        ref_points = output_dict.get('ref_points')
+        src_points = output_dict.get('src_points')
+        rt_init = output_dict.get('pred_rt')
+        quat = rt_init[:4]
+        trans = rt_init[4:]
+        r = Rotation.from_quat(quat)
+        rot = r.as_matrix()
+        init_trans = torch.from_numpy(get_transform_from_rotation_translation(rot, trans).astype(np.float32)).cuda()
+        ref_points = ref_points.cpu().numpy()
+
+        source = o3d.geometry.PointCloud()
+        source.points = o3d.utility.Vector3dVector(src_points.cpu().numpy())
+        target = o3d.geometry.PointCloud()
+        target.points = o3d.utility.Vector3dVector(ref_points)
+        reg_p2p = o3d.pipelines.registration.registration_icp(
+            source, target, 0.005, init_trans.cpu().numpy(),
+            o3d.pipelines.registration.TransformationEstimationPointToPoint(),
+            o3d.pipelines.registration.ICPConvergenceCriteria(max_iteration = 2000))
+        output_dict['refined_trans'] = torch.from_numpy(reg_p2p.transformation.astype(np.float32)).cuda()
+        output_dict['coarse_trans'] = init_trans   
+        return output_dict
 
 def create_cordi(cfg):
     model = Cordi(cfg)

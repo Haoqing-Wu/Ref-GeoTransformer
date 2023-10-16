@@ -75,6 +75,7 @@ class DDPMTrainer(IterBasedDDPMTrainer):
         data_dict['feat_2d'] = feat_2d.squeeze(0)
         data_dict['feat_3d'] = feat_3d.squeeze(0)
         output_dict = self.model.sample(data_dict)
+        output_dict = self.model.refine(output_dict)
         result_dict = self.evaluator(output_dict, data_dict)
         return output_dict, result_dict
 

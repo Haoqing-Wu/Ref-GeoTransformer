@@ -317,20 +317,13 @@ class DDPMEvaluator(nn.Module):
         return precision
 
     @torch.no_grad()
-    def evaluate_registration(self, output_dict, data_dict):
+    def evaluate_registration(self, output_dict, data_dict, level):
         transform = data_dict['transform_raw'].squeeze(0)
-        pred_rt = output_dict['pred_rt']
-        quat = pred_rt[:4]
-        #trans = pred_rt[4:] + output_dict['center_ref'].cpu()
-        trans = pred_rt[4:]
-        # if nan in quaternion, set it to 1
-        if torch.isnan(quat).any():
-            quat = torch.tensor([1.0, 0.0, 0.0, 0.0]).cpu()
-            print('nan in quaternion')
-        r = Rotation.from_quat(quat)
-        rot = r.as_matrix()
-        est_transform = torch.from_numpy(get_transform_from_rotation_translation(rot, trans).astype(np.float32)).cuda()
-
+        if level == 'coarse':
+            est_transform = output_dict['coarse_trans']
+        elif level == 'refined':
+            est_transform = output_dict['refined_trans']
+            
         src_points = output_dict['src_points']
 
         rre, rte = isotropic_transform_error(transform, est_transform)
@@ -343,10 +336,15 @@ class DDPMEvaluator(nn.Module):
         return rre, rte, rmse, recall
 
     def forward(self, output_dict, data_dict):
-        rre, rte, rmse, recall = self.evaluate_registration(output_dict, data_dict)
+        rre_c, rte_c, rmse_c, recall_c = self.evaluate_registration(output_dict, data_dict, 'coarse')
+        rre_r, rte_r, rmse_r, recall_r = self.evaluate_registration(output_dict, data_dict, 'refined')
         return {
-            'RRE': rre,
-            'RTE': rte,
-            'RMSE': rmse,
-            'RR': recall
+            'RRE_C': rre_c,
+            'RTE_C': rte_c,
+            'RMSE_C': rmse_c,
+            'RR_C': recall_c,
+            'RRE_R': rre_r,
+            'RTE_R': rte_r,
+            'RMSE_R': rmse_r,
+            'RR_R': recall_r
         }
