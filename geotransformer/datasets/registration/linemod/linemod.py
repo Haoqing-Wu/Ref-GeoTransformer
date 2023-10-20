@@ -14,6 +14,7 @@ from torchvision import transforms
 
 
 from geotransformer.datasets.registration.linemod.bop_utils import *
+from geotransformer.modules.cordi.rotation_tools import compute_ortho6d_from_rotation_matrix_np
 
 class LMODataset(data.Dataset):
     '''
@@ -75,7 +76,7 @@ class LMODataset(data.Dataset):
         pickle_files = {os.path.splitext(os.path.basename(file))[0]:\
                                 str(file) for file in Path(self.pickle_root).glob('lm_{0}*.pkl'.format(self.mode))}
         for file in pickle_files:
-            if self.overfit is not None and self.overfit != int(file.split('_')[-1]) and not self.mode == 'train_pbr':
+            if self.overfit is not None and self.overfit != int(file.split('_')[-1]) and not self.mode == 'train_pbr' and not self.mode == 'test_lmo':
                 continue
             with open(self.pickle_root + file + '.pkl', 'rb') as f:
                 data = pickle.load(f)
@@ -127,8 +128,13 @@ class LMODataset(data.Dataset):
 
         #trans = trans.reshape(-1)
         r = Rotation.from_matrix(rot)
-        quaternion = r.as_quat()
-        rt = np.concatenate((quaternion, trans), axis=0)
+        #quaternion = r.as_quat()
+        #mrp = r.as_mrp()
+        ortho6d = compute_ortho6d_from_rotation_matrix_np(rot)
+
+        #rt = np.concatenate((quaternion, trans), axis=0)
+        #rt = np.concatenate((mrp, trans), axis=0)
+        rt = np.concatenate((ortho6d, trans), axis=0)
 
         transform = get_transform_from_rotation_translation(rot, trans)
         transform_raw = get_transform_from_rotation_translation(rot, trans_raw)
@@ -168,8 +174,14 @@ class LMODataset(data.Dataset):
 
         model_files = list(Path(model_root).glob('*.ply'))
 
-        if self.mode == 'train_pbr':
-            for scene_id in tqdm(range(0, 50)):
+        if self.mode == 'train_pbr' or self.mode == 'test_lmo':
+            if self.mode == 'train_pbr':
+                first = 0
+                last = 50
+            elif self.mode == 'test_lmo':
+                first = 2
+                last = 3
+            for scene_id in tqdm(range(first, last)):
                 data = []
                 scene_path = self.base_dir + self.mode + '/' + str(scene_id).zfill(6)
                 depth_path = scene_path + '/depth'
@@ -190,6 +202,9 @@ class LMODataset(data.Dataset):
                                 str(file) for file in Path(mask_path).glob('*.png')}
                 rgb_files = {os.path.splitext(os.path.basename(file))[0]:\
                                 str(file) for file in Path(rgb_path).glob('*.jpg')}
+                if self.mode == 'test_lmo':
+                    rgb_files = {os.path.splitext(os.path.basename(file))[0]:\
+                                str(file) for file in Path(rgb_path).glob('*.png')}
                 frames = list(depth_files.keys())
 
                 count = 0
@@ -220,7 +235,10 @@ class LMODataset(data.Dataset):
                         depth_masked = depth[rmin:rmax, cmin:cmax].flatten()[choose][:, np.newaxis].astype(np.float32)
                         xmap_masked = xmap[rmin:rmax, cmin:cmax].flatten()[choose][:, np.newaxis].astype(np.float32)
                         ymap_masked = ymap[rmin:rmax, cmin:cmax].flatten()[choose][:, np.newaxis].astype(np.float32)
-                        cam_scale = 10.0
+                        if self.mode == 'train_pbr':
+                            cam_scale = 10.0
+                        elif self.mode == 'test_lmo':
+                            cam_scale = 1.0
                         pt2 = depth_masked / cam_scale
                         pt0 = (ymap_masked - cam_cx) * pt2 / cam_fx
                         pt1 = (xmap_masked - cam_cy) * pt2 / cam_fy

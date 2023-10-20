@@ -6,12 +6,14 @@ from geotransformer.modules.cordi.ddpm import *
 from geotransformer.modules.cordi.transformer import *
 from geotransformer.datasets.registration.linemod.bop_utils import *
 from geotransformer.modules.diffusion import create_diffusion
+from geotransformer.modules.cordi.rotation_tools import compute_rotation_matrix_from_ortho6d
 
 class Cordi(Module):
 
     def __init__(self, cfg):
         super(Cordi, self).__init__()
         self.cfg = cfg
+        self.multi_hypothesis = cfg.ddpm.multi_hypothesis
         self.ref_sample_num = cfg.ddpm.ref_sample_num
         self.src_sample_num = cfg.ddpm.src_sample_num
         self.adaptive_size = cfg.ddpm.adaptive_size
@@ -184,21 +186,30 @@ class Cordi(Module):
     
     def sample(self, d_dict):
 
-        rt_T = torch.randn_like(d_dict.get('rt')).cuda().unsqueeze(1)
         feat_2d = d_dict.get('feat_2d')
         feat_3d = d_dict.get('feat_3d')
         feats = {}
         feats['feat_2d'] = feat_2d
         feats['feat_3d'] = feat_3d
-        pred_rt = self.diffusion_new.p_sample_loop(
+
+        rt_T = torch.randn_like(d_dict.get('rt').repeat(self.multi_hypothesis, 1)).cuda().unsqueeze(1)
+
+        traj = self.diffusion_new.p_sample_loop(
             self.net, rt_T.shape, rt_T, clip_denoised=False, model_kwargs=feats, progress=True, device='cuda'
-        ).cpu()
+        )
+        pred_rt = traj[-1].cpu()
         pred_rt = pred_rt.squeeze(1)
+        mean_rt = pred_rt.mean(dim=0)
+        var_rt = pred_rt.var(dim=0)
+        mean_var_rt = var_rt.mean(dim=0)
+
         return {
             'ref_points': d_dict.get('ref_points').squeeze(0),
             'src_points': d_dict.get('src_points').squeeze(0),
             'center_ref': d_dict.get('center_ref').squeeze(0),
-            'pred_rt': pred_rt.squeeze(0)     
+            'pred_rt': mean_rt,
+            'var_rt': mean_var_rt,
+            'traj': traj,
             }
 
     def refine(self, output_dict):
@@ -206,10 +217,18 @@ class Cordi(Module):
         ref_points = output_dict.get('ref_points')
         src_points = output_dict.get('src_points')
         rt_init = output_dict.get('pred_rt')
-        quat = rt_init[:4]
-        trans = rt_init[4:]
-        r = Rotation.from_quat(quat)
-        rot = r.as_matrix()
+        #quat = rt_init[:4]
+        #trans = rt_init[4:]
+        #r = Rotation.from_quat(quat)
+        #mrp = rt_init[:3]
+        #trans = rt_init[3:]
+        #r = Rotation.from_mrp(mrp)
+        #rot = r.as_matrix()
+        ortho6d = rt_init[:6]
+        trans = rt_init[6:]
+
+        # TODO: rewrite this part
+        rot = compute_rotation_matrix_from_ortho6d(ortho6d.unsqueeze(0).cuda()).squeeze(0).cpu()
         init_trans = torch.from_numpy(get_transform_from_rotation_translation(rot, trans).astype(np.float32)).cuda()
         ref_points = ref_points.cpu().numpy()
 
@@ -220,7 +239,7 @@ class Cordi(Module):
         reg_p2p = o3d.pipelines.registration.registration_icp(
             source, target, 0.005, init_trans.cpu().numpy(),
             o3d.pipelines.registration.TransformationEstimationPointToPoint(),
-            o3d.pipelines.registration.ICPConvergenceCriteria(max_iteration = 2000))
+            o3d.pipelines.registration.ICPConvergenceCriteria(max_iteration = 20000))
         output_dict['refined_trans'] = torch.from_numpy(reg_p2p.transformation.astype(np.float32)).cuda()
         output_dict['coarse_trans'] = init_trans   
         return output_dict

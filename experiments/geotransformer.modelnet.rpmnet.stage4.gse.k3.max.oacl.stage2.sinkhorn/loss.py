@@ -346,5 +346,6 @@ class DDPMEvaluator(nn.Module):
             'RRE_R': rre_r,
             'RTE_R': rte_r,
             'RMSE_R': rmse_r,
-            'RR_R': recall_r
+            'RR_R': recall_r,
+            'Var': output_dict['var_rt'],
         }

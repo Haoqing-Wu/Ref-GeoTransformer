@@ -447,6 +447,8 @@ class GaussianDiffusion:
         :return: a non-differentiable batch of samples.
         """
         final = None
+        traj_samples = []
+
         for sample in self.p_sample_loop_progressive(
             model,
             shape,
@@ -458,8 +460,10 @@ class GaussianDiffusion:
             device=device,
             progress=progress,
         ):
-            final = sample
-        return final["sample"]
+            final = sample 
+            traj_samples.append(final["sample"])
+
+        return traj_samples
 
     def p_sample_loop_progressive(
         self,

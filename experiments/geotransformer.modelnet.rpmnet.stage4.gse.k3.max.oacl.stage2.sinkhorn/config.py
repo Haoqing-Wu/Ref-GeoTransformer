@@ -38,7 +38,7 @@ ensure_dir(_C.result_csv_dir)
 _C.wandb_ddpm = edict()
 _C.wandb_ddpm.enable = False
 _C.wandb_ddpm.project = "cordi_pose_base"
-_C.wandb_ddpm.name = "E_lm6_pbr_b16_L_se3_dino_foldnet_8l_icp"
+_C.wandb_ddpm.name = "lm6_pbr_b16_L_se3_ortho6d_dino_foldnet_8l_icp"
 
 # wandb recon
 _C.wandb_recon = edict()
@@ -164,6 +164,7 @@ _C.ddpm.num_steps = 1000
 _C.ddpm.beta_1 = 1e-4
 _C.ddpm.beta_T = 0.02
 _C.ddpm.sched_mode = 'linear'
+_C.ddpm.multi_hypothesis = 64
 _C.ddpm.ref_sample_num = 40
 _C.ddpm.src_sample_num = 80
 _C.ddpm.adaptive_size = False

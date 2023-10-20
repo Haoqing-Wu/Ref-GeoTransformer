@@ -273,6 +273,7 @@ class IterBasedDDPMTrainer(BaseTrainer):
         )
         self.max_iteration = max_iteration
         self.snapshot_steps = snapshot_steps
+        self.root_dir = cfg.root_dir
         self.snapshot_encoder_dir = cfg.snapshot_recon_dir
         self.snapshot_ddpm_dir = cfg.snapshot_ddpm_dir
         self.result_pcd_dir = cfg.result_pcd_dir
@@ -338,7 +339,9 @@ class IterBasedDDPMTrainer(BaseTrainer):
         #total_iterations = len(self.val_loader)
         total_iterations = 30
         log_dir = self.result_pcd_dir + "/val_"
+        traj_dir = self.result_pcd_dir + "/traj/val/"
         csv_file = self.result_csv_dir + "/val_" + str(self.iteration) + "_result.csv"
+        model_dir = self.root_dir + "/data/lm/models"
 
         pbar = tqdm.tqdm(enumerate(self.val_loader), total=total_iterations)
         for iteration, data_dict in pbar:
@@ -362,9 +365,9 @@ class IterBasedDDPMTrainer(BaseTrainer):
             pbar.set_description(message)
             torch.cuda.empty_cache()
             #save_transformed_pcd(output_dict, data_dict)
-            if iteration == 30:
+            if iteration == 3:
                 # save the point cloud and corresponding prediction
-                
+                save_traj(output_dict, data_dict, model_dir, traj_dir)
                 est_tran_pcd_plt_c = save_transformed_pcd(output_dict, data_dict, log_dir, 'coarse')
                 est_tran_pcd_plt_r = save_transformed_pcd(output_dict, data_dict, log_dir, 'refined')
                 break
@@ -385,6 +388,7 @@ class IterBasedDDPMTrainer(BaseTrainer):
                     "RTE_R": summary_dict['RTE_R'],
                     "RMSE_R": summary_dict['RMSE_R'],
                     "RR_R": summary_dict['RR_R'],
+                    "Var": summary_dict['Var'],
                     "Est_pose_C": wandb.Object3D(est_tran_pcd_plt_c),
                     "Est_pose_R": wandb.Object3D(est_tran_pcd_plt_r)
                 }
@@ -397,10 +401,12 @@ class IterBasedDDPMTrainer(BaseTrainer):
         self.before_val()
         summary_board = SummaryBoard(adaptive=True)
         timer = Timer()
-        #total_iterations = len(self.test_loader)
-        total_iterations = 100
+        total_iterations = len(self.test_loader)
+        #total_iterations = 100
+        traj_dir = self.result_pcd_dir + "/traj/test/"
         log_dir = self.result_pcd_dir + "/test_"
         csv_file = self.result_csv_dir + "/test_" + str(self.iteration) + "_result.csv"
+        model_dir = self.root_dir + "/data/lm/models"
 
         pbar = tqdm.tqdm(enumerate(self.test_loader), total=total_iterations)
         for iteration, data_dict in pbar:
@@ -425,11 +431,11 @@ class IterBasedDDPMTrainer(BaseTrainer):
             torch.cuda.empty_cache()
             if iteration == 100:
                 # save the point cloud and corresponding prediction
-                
+                save_traj(output_dict, data_dict, model_dir, traj_dir)
                 est_tran_pcd_plt_c = save_transformed_pcd(output_dict, data_dict, log_dir, 'coarse')
                 est_tran_pcd_plt_r = save_transformed_pcd(output_dict, data_dict, log_dir, 'refined')
 
-                break
+                #break
 
         self.after_val()
         summary_dict = summary_board.summary()
@@ -447,6 +453,7 @@ class IterBasedDDPMTrainer(BaseTrainer):
                     "RTE_R": summary_dict['RTE_R'],
                     "RMSE_R": summary_dict['RMSE_R'],
                     "RR_R": summary_dict['RR_R'],
+                    "Var": summary_dict['Var'],
                     "Est_pose_C": wandb.Object3D(est_tran_pcd_plt_c),
                     "Est_pose_R": wandb.Object3D(est_tran_pcd_plt_r)        
                 }
@@ -461,7 +468,7 @@ class IterBasedDDPMTrainer(BaseTrainer):
         self.load_pretrained_model(osp.join(self.snapshot_encoder_dir, 'snapshot_comp_lm6.pth.tar'))
 
         if self.args.resume:
-            self.load_snapshot(osp.join(self.snapshot_ddpm_dir, 'snapshot_pose_lm6.pth.tar'))
+            self.load_snapshot(osp.join(self.snapshot_ddpm_dir, 'iter-25000.pth.tar'))
         elif self.args.snapshot is not None:
             self.load_snapshot(self.args.snapshot)
         self.set_train_mode()

@@ -4,9 +4,11 @@ import cv2
 import torch
 import open3d as o3d
 import numpy as np
+import copy
 from scipy.spatial import cKDTree
 from typing import Optional
 from scipy.spatial.transform import Rotation
+from geotransformer.modules.cordi.rotation_tools import compute_rotation_matrix_from_ortho6d
 #from focal_loss.focal_loss import FocalLoss
 
 
@@ -724,7 +726,7 @@ def save_transformed_pcd(output_dict, data_dict, log_dir, level):
     o3d.io.write_point_cloud(log_dir + "gt_tran_pcd_plt.ply", gt_tran_pcd_plt)
     est_tran_pcd_plt = o3d.geometry.PointCloud()
     est_tran_pcd_plt.points = o3d.utility.Vector3dVector(est_src_points)
-    o3d.io.write_point_cloud(log_dir + "est_tran_pcd_plt.ply", est_tran_pcd_plt)
+    o3d.io.write_point_cloud(log_dir + level + "_est_tran_pcd_plt.ply", est_tran_pcd_plt)
 
     color_gt = np.array([[30, 255, 0] for i in range(gt_src_points.shape[0])])
     color_est = np.array([[0, 255, 255] for i in range(est_src_points.shape[0])])
@@ -767,6 +769,35 @@ def save_recon_pcd(output_dict, data_dict, log_dir):
 
     return vis
 
+def save_traj(output_dict, data_dict, model_dir, traj_dir):
+    obj_id = data_dict['obj_id'].item()
+    model_file = model_dir + "/obj_" + str(obj_id).zfill(6) + ".ply"
+    obj_mesh = o3d.io.read_triangle_mesh(model_file)
+    gt_transformation = data_dict['transform_raw'].squeeze(0)
+    gt_obj_mesh = copy.deepcopy(obj_mesh)
+    gt_obj_mesh.transform(gt_transformation.cpu().numpy())
+    traj = output_dict['traj']
+    for idx, transformation in enumerate(traj):
+        transformation = transformation[0, :, :].squeeze(0) # select the first hypothesis
+        ortho6d = transformation[:6]
+        trans = transformation[6:].cpu()
+        rot = compute_rotation_matrix_from_ortho6d(ortho6d.unsqueeze(0)).squeeze(0).cpu()
+        transformation_matrix = torch.from_numpy(get_transform_from_rotation_translation(rot, trans).astype(np.float32))
+        pred_obj_mesh = copy.deepcopy(obj_mesh)
+        pred_obj_mesh.transform(transformation_matrix.numpy())
+
+        renderer = o3d.visualization.rendering.OffScreenRenderer()
+        width, height = 1920, 1080  # Adjust these values as needed
+        renderer.set_resolution(width, height)
+        renderer.scene.add_geometry(gt_obj_mesh)
+        renderer.scene.add_geometry(pred_obj_mesh)
+        renderer.scene.set_background(np.asarray([0, 0, 0]))
+        vis = renderer.render_to_image()
+
+        vis_filename = traj_dir + str(idx) + ".png"
+        o3d.io.write_image(vis_filename, vis)
+
+
 import csv
 
 def write_result_csv(output_dict, data_dict, filepath):
@@ -776,11 +807,11 @@ def write_result_csv(output_dict, data_dict, filepath):
 
     score = 1.0
 
-    trans = output_dict['refined_trans'].cpu().numpy()
-    rot = trans[:3, :3]
+    transform = output_dict['refined_trans'].cpu().numpy()
+    rot = transform[:3, :3]
     rot_row_wise = rot.flatten()
 
-    trans = trans[:3, 3] * 1000.0
+    trans = transform[:3, 3] * 1000.0
     
     time = 1.0
 

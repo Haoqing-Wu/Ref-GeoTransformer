@@ -222,7 +222,7 @@ for result_filename in p['result_filenames']:
         # Load the scores.
         misc.log('Loading calculated scores from: {}'.format(scores_path))
         scores = inout.load_json(scores_path)
-        recalls.append(scores['recall'])
+        recalls.append(scores['obj_recalls']['6'])
 
     average_recalls[error['type']] = np.mean(recalls)
 
