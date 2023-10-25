@@ -14,43 +14,17 @@ class Cordi(Module):
         super(Cordi, self).__init__()
         self.cfg = cfg
         self.multi_hypothesis = cfg.ddpm.multi_hypothesis
-        self.ref_sample_num = cfg.ddpm.ref_sample_num
-        self.src_sample_num = cfg.ddpm.src_sample_num
-        self.adaptive_size = cfg.ddpm.adaptive_size
-        self.size_factor = cfg.ddpm.size_factor
-        self.sample_topk = cfg.ddpm.sample_topk
-        self.sample_topk_1_2 = cfg.ddpm.sample_topk_1_2
-        self.sample_topk_1_4 = cfg.ddpm.sample_topk_1_4
-        self.diffusion = DiffusionPoint(
-            net = transformer(
-                n_layers=cfg.ddpm_transformer.n_layers,
-                n_heads=cfg.ddpm_transformer.n_heads,
-                query_dimensions=cfg.ddpm_transformer.query_dimensions,
-                feed_forward_dimensions=cfg.ddpm_transformer.feed_forward_dimensions,
-                activation=cfg.ddpm_transformer.activation
-            ),
-            var_sched = VarianceSchedule(
-                num_steps=cfg.ddpm.num_steps,
-                beta_1=cfg.ddpm.beta_1,
-                beta_T=cfg.ddpm.beta_T,
-                mode=cfg.ddpm.sched_mode
-            ),
-            time_emb = nn.Sequential(
-                SinusoidalPositionEmbeddings(cfg.ddpm.time_emb_dim),
-                nn.Linear(cfg.ddpm.time_emb_dim, 
-                          cfg.ddpm_transformer.n_heads*cfg.ddpm_transformer.query_dimensions),
-                nn.ReLU()
-            ),
-            num_steps=cfg.ddpm.num_steps
-        )
-        self.diffusion_new = create_diffusion(timestep_respacing="ddim50")
+        self.rotation_type = cfg.ddpm.rotation_type
+        self.norm_factor = cfg.data.norm_factor
+
+        self.diffusion_new = create_diffusion(timestep_respacing="ddim100")
         self.net = transformer(
                 n_layers=cfg.ddpm_transformer.n_layers,
                 n_heads=cfg.ddpm_transformer.n_heads,
                 query_dimensions=cfg.ddpm_transformer.query_dimensions,
-                feed_forward_dimensions=cfg.ddpm_transformer.feed_forward_dimensions,
-                activation=cfg.ddpm_transformer.activation,
-                time_emb_dim=cfg.ddpm.time_emb_dim
+                time_emb_dim=cfg.ddpm.time_emb_dim,
+                dino_emb_dim=cfg.dino.output_dim,
+                recon_emb_dim=cfg.recon.feat_dims,
             )
 
     def downsample(self, batch_latent_data, slim=False):
@@ -189,8 +163,8 @@ class Cordi(Module):
         feat_2d = d_dict.get('feat_2d')
         feat_3d = d_dict.get('feat_3d')
         feats = {}
-        feats['feat_2d'] = feat_2d
-        feats['feat_3d'] = feat_3d
+        feats['feat_2d'] = feat_2d.repeat(self.multi_hypothesis, 1)
+        feats['feat_3d'] = feat_3d.repeat(self.multi_hypothesis, 1)
 
         rt_T = torch.randn_like(d_dict.get('rt').repeat(self.multi_hypothesis, 1)).cuda().unsqueeze(1)
 
@@ -217,19 +191,25 @@ class Cordi(Module):
         ref_points = output_dict.get('ref_points')
         src_points = output_dict.get('src_points')
         rt_init = output_dict.get('pred_rt')
-        #quat = rt_init[:4]
-        #trans = rt_init[4:]
-        #r = Rotation.from_quat(quat)
-        #mrp = rt_init[:3]
-        #trans = rt_init[3:]
-        #r = Rotation.from_mrp(mrp)
-        #rot = r.as_matrix()
-        ortho6d = rt_init[:6]
-        trans = rt_init[6:]
-
-        # TODO: rewrite this part
-        rot = compute_rotation_matrix_from_ortho6d(ortho6d.unsqueeze(0).cuda()).squeeze(0).cpu()
+      
+        if self.rotation_type == 'quat':
+            quat = rt_init[:4]
+            trans = rt_init[4:]
+            r = Rotation.from_quat(quat)
+            rot = rot.as_matrix()
+        elif self.rotation_type == 'mrp':
+            mrp = rt_init[:3]
+            trans = rt_init[3:]
+            r = Rotation.from_mrp(mrp)
+            rot = r.as_matrix()
+        elif self.rotation_type == 'ortho6d':
+            ortho6d = rt_init[:6]
+            trans = rt_init[6:]
+            # TODO: rewrite this part
+            rot = compute_rotation_matrix_from_ortho6d(ortho6d.unsqueeze(0).cuda()).squeeze(0).cpu()
+        
         init_trans = torch.from_numpy(get_transform_from_rotation_translation(rot, trans).astype(np.float32)).cuda()
+        init_trans_icp = torch.from_numpy(get_transform_from_rotation_translation(rot, trans/self.norm_factor).astype(np.float32)).cuda()
         ref_points = ref_points.cpu().numpy()
 
         source = o3d.geometry.PointCloud()
@@ -237,10 +217,13 @@ class Cordi(Module):
         target = o3d.geometry.PointCloud()
         target.points = o3d.utility.Vector3dVector(ref_points)
         reg_p2p = o3d.pipelines.registration.registration_icp(
-            source, target, 0.005, init_trans.cpu().numpy(),
+            source, target, 0.005, init_trans_icp.cpu().numpy(),
             o3d.pipelines.registration.TransformationEstimationPointToPoint(),
             o3d.pipelines.registration.ICPConvergenceCriteria(max_iteration = 20000))
-        output_dict['refined_trans'] = torch.from_numpy(reg_p2p.transformation.astype(np.float32)).cuda()
+        #output_dict['refined_trans'] = torch.from_numpy(reg_p2p.transformation.astype(np.float32)).cuda()
+        refined_trans = torch.from_numpy(reg_p2p.transformation.astype(np.float32)).cuda()
+        refined_trans[:3, 3] = refined_trans[:3, 3] * self.norm_factor
+        output_dict['refined_trans'] = refined_trans
         output_dict['coarse_trans'] = init_trans   
         return output_dict
 

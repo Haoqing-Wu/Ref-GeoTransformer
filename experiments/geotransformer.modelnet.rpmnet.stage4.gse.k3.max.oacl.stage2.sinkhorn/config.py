@@ -36,9 +36,9 @@ ensure_dir(_C.result_csv_dir)
 
 # wandb ddpm
 _C.wandb_ddpm = edict()
-_C.wandb_ddpm.enable = False
+_C.wandb_ddpm.enable = True
 _C.wandb_ddpm.project = "cordi_pose_base"
-_C.wandb_ddpm.name = "lm6_pbr_b16_L_se3_ortho6d_dino_foldnet_8l_icp"
+_C.wandb_ddpm.name = "lm6_pbr_b16_L_10xtrans_o6d_mh16_400step_d512_cat_dino_foldnet_8l_icp"
 
 # wandb recon
 _C.wandb_recon = edict()
@@ -49,6 +49,7 @@ _C.wandb_recon.name = "D_lm_pbr_b32_or100_foldnet_plane_k16_d512"
 # data
 _C.data = edict()
 _C.data.dataset = "linemod"
+_C.data.norm_factor = 10.0
 
 # train data
 _C.train = edict()
@@ -85,8 +86,8 @@ _C.optim.weight_decay = 1e-6
 _C.optim.warmup_steps = 1000
 _C.optim.eta_init = 0.1
 _C.optim.eta_min = 0.01
-_C.optim.max_iteration = 1000000
-_C.optim.snapshot_steps = 50
+_C.optim.max_iteration = 500000
+_C.optim.snapshot_steps = 5000
 _C.optim.grad_acc_steps = 1
 
 # model - backbone
@@ -148,6 +149,7 @@ _C.dino.arch = 'vit_base'
 _C.dino.patch_size = 8
 _C.dino.pretrained_weights = ''
 _C.dino.checkpoint_key = "teacher"
+_C.dino.output_dim = 768
 
 # model - Recon
 _C.recon = edict()
@@ -164,21 +166,15 @@ _C.ddpm.num_steps = 1000
 _C.ddpm.beta_1 = 1e-4
 _C.ddpm.beta_T = 0.02
 _C.ddpm.sched_mode = 'linear'
-_C.ddpm.multi_hypothesis = 64
-_C.ddpm.ref_sample_num = 40
-_C.ddpm.src_sample_num = 80
-_C.ddpm.adaptive_size = False
-_C.ddpm.size_factor = 0.8
-_C.ddpm.sample_topk = 32
-_C.ddpm.sample_topk_1_2 = 16
-_C.ddpm.sample_topk_1_4 = 8
+_C.ddpm.multi_hypothesis = 16
+_C.ddpm.rotation_type = 'ortho6d'
 _C.ddpm.time_emb_dim = 256
 
 # model - DDPM - Transformer
 _C.ddpm_transformer = edict()
 _C.ddpm_transformer.n_layers = 8
 _C.ddpm_transformer.n_heads = 4
-_C.ddpm_transformer.query_dimensions = 64
+_C.ddpm_transformer.query_dimensions = 128
 _C.ddpm_transformer.value_dimensions = 64
 _C.ddpm_transformer.feed_forward_dimensions = 1024
 _C.ddpm_transformer.attention_type = "full"

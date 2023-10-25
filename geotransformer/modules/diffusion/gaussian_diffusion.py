@@ -81,6 +81,8 @@ def get_beta_schedule(beta_schedule, *, beta_start, beta_end, num_diffusion_time
         betas = np.linspace(beta_start, beta_end, num_diffusion_timesteps, dtype=np.float64)
     elif beta_schedule == "warmup10":
         betas = _warmup_beta(beta_start, beta_end, num_diffusion_timesteps, 0.1)
+    elif beta_schedule == "warmup30":
+        betas = _warmup_beta(beta_start, beta_end, num_diffusion_timesteps, 0.3)
     elif beta_schedule == "warmup50":
         betas = _warmup_beta(beta_start, beta_end, num_diffusion_timesteps, 0.5)
     elif beta_schedule == "const":

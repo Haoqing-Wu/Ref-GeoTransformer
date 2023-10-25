@@ -13,41 +13,34 @@ class transformer(Module):
             n_layers=4,
             n_heads=4,
             query_dimensions=64,
-            feed_forward_dimensions=2048,
-            activation="gelu",
             time_emb_dim=256,
-            pos_emb_dim=256
+            dino_emb_dim=768,
+            recon_emb_dim=512,
         ):
         super().__init__()
-
+        self.hidden_dim = query_dimensions * n_heads
         self.output_mlp = Sequential(
-            Linear(query_dimensions*n_heads, 2)
-        )
-        self.feature_cross_attension = TransformerLayer(
-            d_model=256, num_heads=8, dropout=None, activation_fn='ReLU'
-        )
-        self.feature_output_mlp = Sequential(
-            LayerNorm(256),
-            Linear(256, 512),
+            Linear(self.hidden_dim, 2)
         )
         self.DiT_blocks = ModuleList([
-            DiTBlock(query_dimensions*n_heads, n_heads, mlp_ratio=4.0) for _ in range(n_layers)
+            DiTBlock(self.hidden_dim, n_heads, mlp_ratio=4.0) for _ in range(n_layers)
         ])
         self.time_emb = Sequential(
             SinusoidalPositionEmbeddings(time_emb_dim),
-            Linear(time_emb_dim, n_heads*query_dimensions),
+            Linear(time_emb_dim, self.hidden_dim),
             GELU(),
-            Linear(n_heads*query_dimensions, n_heads*query_dimensions)
+            Linear(self.hidden_dim, self.hidden_dim)
         )
-        self.pos_emb = PositionalEncoding1D(pos_emb_dim)
+        self.pos_emb = PositionalEncoding1D(self.hidden_dim)
         self.feat_2d_mlp = Sequential(
-            LayerNorm(768),
-            Linear(768, 256)
+            LayerNorm(dino_emb_dim),
+            Linear(dino_emb_dim, self.hidden_dim)
         )
         self.feat_3d_mlp = Sequential(
-            LayerNorm(512),
-            Linear(512, 256)
+            LayerNorm(recon_emb_dim),
+            Linear(recon_emb_dim, self.hidden_dim)
         )
+        self.feat_mlp = Linear(dino_emb_dim+recon_emb_dim+self.hidden_dim, self.hidden_dim)
 
     def feature_fusion_cat(self, feat0, feat1):
         feat_matrix = torch.cat([feat0.unsqueeze(2).repeat(1, 1, feat1.shape[1], 1),
@@ -82,15 +75,16 @@ class transformer(Module):
         feat_2d = feats.get('feat_2d')
         feat_3d = feats.get('feat_3d')
         x = x_t.squeeze(1)
-        x = x.unsqueeze(-1).repeat(1, 1, 256)
+        x = x.unsqueeze(-1).repeat(1, 1, self.hidden_dim)
         x = x + self.pos_emb(x)
 
         t = self.time_emb(t)
-        c_2d = self.feat_2d_mlp(feat_2d)
-        c_3d = self.feat_3d_mlp(feat_3d)
-        c = c_2d + c_3d
-        #c = c_3d
-        c = t + c
+        #c_2d = self.feat_2d_mlp(feat_2d)
+        #c_3d = self.feat_3d_mlp(feat_3d)
+        #c = c_2d + c_3d
+        #c = t + c
+        c = torch.cat([feat_2d, feat_3d, t], dim=-1)
+        c = self.feat_mlp(c)
 
         for block in self.DiT_blocks:
             x = block(x, c)

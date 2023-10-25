@@ -21,6 +21,8 @@ def train_valid_data_loader(cfg, distributed):
             points_limit=1000,
             mode='train_pbr',
             overfit=6,
+            rot_type=cfg.ddpm.rotation_type, 
+            norm_factor=cfg.data.norm_factor,
         )
         test_dataset = LMODataset(
             data_folder='./data/',
@@ -32,6 +34,8 @@ def train_valid_data_loader(cfg, distributed):
             points_limit=1000,
             mode='test',
             overfit=6,
+            rot_type=cfg.ddpm.rotation_type,
+            norm_factor=cfg.data.norm_factor,
         )
     elif cfg.data.dataset == 'tless':
         dataset = TLessDataset(

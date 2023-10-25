@@ -278,6 +278,7 @@ class IterBasedDDPMTrainer(BaseTrainer):
         self.snapshot_ddpm_dir = cfg.snapshot_ddpm_dir
         self.result_pcd_dir = cfg.result_pcd_dir
         self.result_csv_dir = cfg.result_csv_dir
+        self.norm_factor = cfg.data.norm_factor
         self.wandb_enable = cfg.wandb_ddpm.enable
 
         if self.wandb_enable and (self.local_rank == 0 or self.local_rank == -1):
@@ -352,7 +353,7 @@ class IterBasedDDPMTrainer(BaseTrainer):
             timer.add_prepare_time()
             output_dict, result_dict = self.val_step(self.inner_iteration, data_dict)
             timer.add_process_time()
-            write_result_csv(output_dict, data_dict, csv_file)
+            write_result_csv(output_dict, data_dict, csv_file, norm_factor=self.norm_factor)
             self.after_val_step(self.inner_iteration, data_dict, output_dict, result_dict)
             result_dict = self.release_tensors(result_dict)
             summary_board.update_from_result_dict(result_dict)
@@ -365,11 +366,11 @@ class IterBasedDDPMTrainer(BaseTrainer):
             pbar.set_description(message)
             torch.cuda.empty_cache()
             #save_transformed_pcd(output_dict, data_dict)
-            if iteration == 3:
+            if iteration == 30:
                 # save the point cloud and corresponding prediction
-                save_traj(output_dict, data_dict, model_dir, traj_dir)
-                est_tran_pcd_plt_c = save_transformed_pcd(output_dict, data_dict, log_dir, 'coarse')
-                est_tran_pcd_plt_r = save_transformed_pcd(output_dict, data_dict, log_dir, 'refined')
+                save_traj(output_dict, data_dict, model_dir, traj_dir, norm_factor=self.norm_factor)
+                est_tran_pcd_plt_c = save_transformed_pcd(output_dict, data_dict, log_dir, 'coarse', norm_factor=self.norm_factor)
+                est_tran_pcd_plt_r = save_transformed_pcd(output_dict, data_dict, log_dir, 'refined', norm_factor=self.norm_factor)
                 break
 
         self.after_val()
@@ -401,8 +402,8 @@ class IterBasedDDPMTrainer(BaseTrainer):
         self.before_val()
         summary_board = SummaryBoard(adaptive=True)
         timer = Timer()
-        total_iterations = len(self.test_loader)
-        #total_iterations = 100
+        #total_iterations = len(self.test_loader)
+        total_iterations = 50
         traj_dir = self.result_pcd_dir + "/traj/test/"
         log_dir = self.result_pcd_dir + "/test_"
         csv_file = self.result_csv_dir + "/test_" + str(self.iteration) + "_result.csv"
@@ -417,7 +418,7 @@ class IterBasedDDPMTrainer(BaseTrainer):
             timer.add_prepare_time()
             output_dict, result_dict = self.val_step(self.inner_iteration, data_dict)
             timer.add_process_time()
-            write_result_csv(output_dict, data_dict, csv_file)
+            write_result_csv(output_dict, data_dict, csv_file, norm_factor=self.norm_factor)
             self.after_val_step(self.inner_iteration, data_dict, output_dict, result_dict)
             result_dict = self.release_tensors(result_dict)
             summary_board.update_from_result_dict(result_dict)
@@ -429,13 +430,12 @@ class IterBasedDDPMTrainer(BaseTrainer):
             )
             pbar.set_description(message)
             torch.cuda.empty_cache()
-            if iteration == 100:
+            if iteration == 50:
                 # save the point cloud and corresponding prediction
-                save_traj(output_dict, data_dict, model_dir, traj_dir)
-                est_tran_pcd_plt_c = save_transformed_pcd(output_dict, data_dict, log_dir, 'coarse')
-                est_tran_pcd_plt_r = save_transformed_pcd(output_dict, data_dict, log_dir, 'refined')
-
-                #break
+                save_traj(output_dict, data_dict, model_dir, traj_dir, norm_factor=self.norm_factor)
+                est_tran_pcd_plt_c = save_transformed_pcd(output_dict, data_dict, log_dir, 'coarse', norm_factor=self.norm_factor)
+                est_tran_pcd_plt_r = save_transformed_pcd(output_dict, data_dict, log_dir, 'refined', norm_factor=self.norm_factor)
+                break
 
         self.after_val()
         summary_dict = summary_board.summary()
@@ -468,7 +468,7 @@ class IterBasedDDPMTrainer(BaseTrainer):
         self.load_pretrained_model(osp.join(self.snapshot_encoder_dir, 'snapshot_comp_lm6.pth.tar'))
 
         if self.args.resume:
-            self.load_snapshot(osp.join(self.snapshot_ddpm_dir, 'iter-25000.pth.tar'))
+            self.load_snapshot(osp.join(self.snapshot_ddpm_dir, 'snapshot_pose_10xtrans_o6d_mh_400step_lm6.pth.tar'))
         elif self.args.snapshot is not None:
             self.load_snapshot(self.args.snapshot)
         self.set_train_mode()

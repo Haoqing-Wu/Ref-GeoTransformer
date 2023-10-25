@@ -39,7 +39,9 @@ class LMODataset(data.Dataset):
             augment_noise, 
             points_limit,
             mode,
-            overfit
+            overfit,
+            rot_type,
+            norm_factor
             ):
         super(LMODataset, self).__init__()
 
@@ -64,6 +66,10 @@ class LMODataset(data.Dataset):
         self.corr_radius = 0.01
         # overfitting on a single object
         self.overfit = overfit
+        # representation of the rotation
+        self.rot_type = rot_type
+        # normalization factor
+        self.norm_factor = norm_factor
         # loaded data
         self.data = []
         if self.overfit is not None:
@@ -93,7 +99,7 @@ class LMODataset(data.Dataset):
         src_pcd = data_dict['src_points']
         tgt_pcd = data_dict['ref_points']
         rot = data_dict['rot']
-        trans = data_dict['trans']
+        trans = data_dict['trans'] * self.norm_factor
         rgb = data_dict['rgb']
 
         model_info_root = self.base_dir + 'models/models_info.json'
@@ -128,13 +134,14 @@ class LMODataset(data.Dataset):
 
         #trans = trans.reshape(-1)
         r = Rotation.from_matrix(rot)
-        #quaternion = r.as_quat()
-        #mrp = r.as_mrp()
-        ortho6d = compute_ortho6d_from_rotation_matrix_np(rot)
-
-        #rt = np.concatenate((quaternion, trans), axis=0)
-        #rt = np.concatenate((mrp, trans), axis=0)
-        rt = np.concatenate((ortho6d, trans), axis=0)
+        if self.rot_type == 'quat':
+            rotation = r.as_quat()
+        elif self.rot_type == 'mrp':
+            rotation = r.as_mrp()
+        elif self.rot_type == 'ortho6d':
+            rotation = compute_ortho6d_from_rotation_matrix_np(rot)
+   
+        rt = np.concatenate((rotation, trans), axis=0)
 
         transform = get_transform_from_rotation_translation(rot, trans)
         transform_raw = get_transform_from_rotation_translation(rot, trans_raw)

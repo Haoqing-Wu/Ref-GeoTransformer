@@ -702,12 +702,14 @@ def debug_save_pcd(pcd, dir):
     pcd_o3d.points = o3d.utility.Vector3dVector(pcd)
     o3d.io.write_point_cloud(dir, pcd_o3d)
 
-def save_transformed_pcd(output_dict, data_dict, log_dir, level):
+def save_transformed_pcd(output_dict, data_dict, log_dir, level, norm_factor=1.0):
     transform = data_dict['transform_raw'].squeeze(0)
+    transform[:3, 3] = transform[:3, 3] / norm_factor
     if level == 'coarse':
         est_transform = output_dict['coarse_trans']
     elif level == 'refined':
         est_transform = output_dict['refined_trans']
+    est_transform[:3, 3] = est_transform[:3, 3] / norm_factor
 
     src_points = data_dict['src_points'].squeeze(0)
     ref_points = data_dict['ref_points'].squeeze(0)
@@ -769,49 +771,60 @@ def save_recon_pcd(output_dict, data_dict, log_dir):
 
     return vis
 
-def save_traj(output_dict, data_dict, model_dir, traj_dir):
+def save_traj(output_dict, data_dict, model_dir, traj_dir, norm_factor=1.0):
     obj_id = data_dict['obj_id'].item()
     model_file = model_dir + "/obj_" + str(obj_id).zfill(6) + ".ply"
     obj_mesh = o3d.io.read_triangle_mesh(model_file)
     gt_transformation = data_dict['transform_raw'].squeeze(0)
+    # scale the translation to 1000 times
+    gt_rescale_transformation = copy.deepcopy(gt_transformation)
+    gt_rescale_transformation[0:3, 3] = gt_transformation[0:3, 3] * 1000.0 / norm_factor
     gt_obj_mesh = copy.deepcopy(obj_mesh)
-    gt_obj_mesh.transform(gt_transformation.cpu().numpy())
+    gt_obj_mesh.transform(gt_rescale_transformation.cpu().numpy())
+    # change the color of the mesh: green
+    gt_obj_mesh.paint_uniform_color([0.0, 1.0, 0.0])
+
     traj = output_dict['traj']
     for idx, transformation in enumerate(traj):
-        transformation = transformation[0, :, :].squeeze(0) # select the first hypothesis
-        ortho6d = transformation[:6]
-        trans = transformation[6:].cpu()
-        rot = compute_rotation_matrix_from_ortho6d(ortho6d.unsqueeze(0)).squeeze(0).cpu()
-        transformation_matrix = torch.from_numpy(get_transform_from_rotation_translation(rot, trans).astype(np.float32))
-        pred_obj_mesh = copy.deepcopy(obj_mesh)
-        pred_obj_mesh.transform(transformation_matrix.numpy())
+        hypotheses_mesh = o3d.geometry.TriangleMesh()
+        for hypothesis_idx in range(transformation.shape[0]):
 
-        renderer = o3d.visualization.rendering.OffScreenRenderer()
-        width, height = 1920, 1080  # Adjust these values as needed
-        renderer.set_resolution(width, height)
-        renderer.scene.add_geometry(gt_obj_mesh)
-        renderer.scene.add_geometry(pred_obj_mesh)
-        renderer.scene.set_background(np.asarray([0, 0, 0]))
-        vis = renderer.render_to_image()
+            step_transformation = transformation[hypothesis_idx, :, :].squeeze(0) # select the first hypothesis
+            ortho6d = step_transformation[:6]
+            trans = step_transformation[6:].cpu() * 1000.0 / norm_factor
+            rot = compute_rotation_matrix_from_ortho6d(ortho6d.unsqueeze(0)).squeeze(0).cpu()
+            transformation_matrix = torch.from_numpy(get_transform_from_rotation_translation(rot, trans).astype(np.float32))
+            hypothesis_mesh = copy.deepcopy(obj_mesh)
+            # change the transparancy of the mesh
 
-        vis_filename = traj_dir + str(idx) + ".png"
-        o3d.io.write_image(vis_filename, vis)
+            hypothesis_mesh.transform(transformation_matrix.numpy())
+            hypotheses_mesh += hypothesis_mesh
+
+        # make 2 meshes in one file
+        vis_mesh = o3d.geometry.TriangleMesh()
+        vis_mesh += gt_obj_mesh
+        vis_mesh += hypotheses_mesh
+        # save the mesh
+        vis_filename = traj_dir + str(idx) + ".ply"
+        o3d.io.write_triangle_mesh(vis_filename, vis_mesh)
+
+
 
 
 import csv
 
-def write_result_csv(output_dict, data_dict, filepath):
+def write_result_csv(output_dict, data_dict, filepath, norm_factor=1.0):
     scene_id = data_dict['scene_id'].item()
     img_id = data_dict['img_id'].item()
     obj_id = data_dict['obj_id'].item()
 
     score = 1.0
-
+    #transform = output_dict['coarse_trans'].cpu().numpy()
     transform = output_dict['refined_trans'].cpu().numpy()
     rot = transform[:3, :3]
     rot_row_wise = rot.flatten()
 
-    trans = transform[:3, 3] * 1000.0
+    trans = transform[:3, 3] * 1000.0 / norm_factor
     
     time = 1.0
 

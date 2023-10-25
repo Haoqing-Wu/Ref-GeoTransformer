@@ -135,7 +135,7 @@ class BaseTrainer(abc.ABC):
         self.logger.info('Model saved to "{}"'.format(filename))
 
         # save snapshot
-        snapshot_filename = osp.join(dir, 'snapshot_pose_ortho6d_lm6.pth.tar')
+        snapshot_filename = osp.join(dir, 'snapshot_pose_cat_d512_10xtrans_o6d_mh_400step_lm6.pth.tar')
         state_dict['optimizer'] = self.optimizer.state_dict()
         if self.scheduler is not None:
             state_dict['scheduler'] = self.scheduler.state_dict()
