@@ -703,12 +703,12 @@ def debug_save_pcd(pcd, dir):
     o3d.io.write_point_cloud(dir, pcd_o3d)
 
 def save_transformed_pcd(output_dict, data_dict, log_dir, level, norm_factor=1.0):
-    transform = data_dict['transform_raw'].squeeze(0)
+    transform = copy.deepcopy(data_dict['transform_raw'].squeeze(0))
     transform[:3, 3] = transform[:3, 3] / norm_factor
     if level == 'coarse':
-        est_transform = output_dict['coarse_trans']
+        est_transform = copy.deepcopy(output_dict['coarse_trans'])
     elif level == 'refined':
-        est_transform = output_dict['refined_trans']
+        est_transform = copy.deepcopy(output_dict['refined_trans'])
     est_transform[:3, 3] = est_transform[:3, 3] / norm_factor
 
     src_points = data_dict['src_points'].squeeze(0)

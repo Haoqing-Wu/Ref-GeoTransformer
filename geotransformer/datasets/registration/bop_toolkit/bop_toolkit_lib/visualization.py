@@ -185,13 +185,13 @@ def vis_object_poses(
 
         bbox = misc.calc_2d_bbox(xs, ys, im_size)
         im_size = (obj_mask.shape[1], obj_mask.shape[0])
-        ren_rgb_info = draw_rect(ren_rgb_info, bbox, bbox_color)
+        #ren_rgb_info = draw_rect(ren_rgb_info, bbox, bbox_color)
 
         if 'text_info' in pose:
           text_loc = (bbox[0] + 2, bbox[1])
-          ren_rgb_info = write_text_on_image(
-            ren_rgb_info, pose['text_info'], text_loc, color=text_color,
-            size=text_size)
+          #ren_rgb_info = write_text_on_image(
+          #  ren_rgb_info, pose['text_info'], text_loc, color=text_color,
+          #  size=text_size)
 
   # Blend and save the RGB visualization.
   if vis_rgb:

@@ -46,7 +46,7 @@ class ReconTrainer(IterBasedReconTrainer):
         self.register_scheduler(scheduler)
 
         # loss function, evaluator
-        self.loss_func = ChamferLoss().cuda()
+        self.loss_func = ChamferLoss(cfg).cuda()
         self.evaluator = Evaluator(cfg).cuda()
 
     def train_step(self, iteration, data_dict):

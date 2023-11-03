@@ -402,8 +402,8 @@ class IterBasedDDPMTrainer(BaseTrainer):
         self.before_val()
         summary_board = SummaryBoard(adaptive=True)
         timer = Timer()
-        #total_iterations = len(self.test_loader)
-        total_iterations = 50
+        total_iterations = len(self.test_loader)
+        #total_iterations = 50
         traj_dir = self.result_pcd_dir + "/traj/test/"
         log_dir = self.result_pcd_dir + "/test_"
         csv_file = self.result_csv_dir + "/test_" + str(self.iteration) + "_result.csv"
@@ -435,7 +435,7 @@ class IterBasedDDPMTrainer(BaseTrainer):
                 save_traj(output_dict, data_dict, model_dir, traj_dir, norm_factor=self.norm_factor)
                 est_tran_pcd_plt_c = save_transformed_pcd(output_dict, data_dict, log_dir, 'coarse', norm_factor=self.norm_factor)
                 est_tran_pcd_plt_r = save_transformed_pcd(output_dict, data_dict, log_dir, 'refined', norm_factor=self.norm_factor)
-                break
+                #break
 
         self.after_val()
         summary_dict = summary_board.summary()
@@ -465,10 +465,10 @@ class IterBasedDDPMTrainer(BaseTrainer):
         assert self.val_loader is not None
 
         # load pretrained encoder -> self.encoder_model
-        self.load_pretrained_model(osp.join(self.snapshot_encoder_dir, 'snapshot_comp_lm6.pth.tar'))
+        self.load_pretrained_model(osp.join(self.snapshot_encoder_dir, 'snapshot_comp_lm.pth.tar'))
 
         if self.args.resume:
-            self.load_snapshot(osp.join(self.snapshot_ddpm_dir, 'snapshot_pose_10xtrans_o6d_mh_400step_lm6.pth.tar'))
+            self.load_snapshot(osp.join(self.snapshot_ddpm_dir, 'iter-1000000.pth.tar'))
         elif self.args.snapshot is not None:
             self.load_snapshot(self.args.snapshot)
         self.set_train_mode()

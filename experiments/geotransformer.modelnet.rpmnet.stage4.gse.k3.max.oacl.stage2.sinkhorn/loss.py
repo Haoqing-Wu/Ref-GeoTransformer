@@ -93,9 +93,10 @@ class OverallLoss(nn.Module):
 
 
 class ChamferLoss(nn.Module):
-    def __init__(self):
+    def __init__(self, cfg):
         super(ChamferLoss, self).__init__()
         self.use_cuda = torch.cuda.is_available()
+        self.norm_factor = cfg.data.norm_factor
 
     def batch_pairwise_dist(self, x, y):
         bs, num_points_x, points_dim = x.size()

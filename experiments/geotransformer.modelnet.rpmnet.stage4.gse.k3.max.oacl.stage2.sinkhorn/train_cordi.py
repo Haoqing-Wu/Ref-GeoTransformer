@@ -17,13 +17,14 @@ from config import make_cfg
 from dataset import train_valid_data_loader
 from geotransformer.modules.recon.model import create_model
 from loss import OverallLoss, DDPMEvaluator
+from geotransformer.modules.cordi.utils import visualize_attention
 
 
 
 class DDPMTrainer(IterBasedDDPMTrainer):
     def __init__(self, cfg):
         super().__init__(cfg, max_iteration=cfg.optim.max_iteration, snapshot_steps=cfg.optim.snapshot_steps)
-
+        self.cfg = cfg
         # dataloader
         start_time = time.time()
         train_loader, val_loader, test_loader = train_valid_data_loader(cfg, self.distributed)
@@ -63,6 +64,9 @@ class DDPMTrainer(IterBasedDDPMTrainer):
     def train_step(self, iteration, data_dict):
         with torch.no_grad():
             feat_2d = self.dino_model(data_dict['rgb'])
+            if self.cfg.dino.vis:
+                attention = self.dino_model.get_last_selfattention(data_dict['rgb'])
+                visualize_attention(attention, data_dict['rgb'])
             feat_3d = self.encoder_model(data_dict).get('feats').squeeze(1)
         data_dict['feat_2d'] = feat_2d
         data_dict['feat_3d'] = feat_3d

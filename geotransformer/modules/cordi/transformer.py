@@ -32,6 +32,7 @@ class transformer(Module):
             Linear(self.hidden_dim, self.hidden_dim)
         )
         self.pos_emb = PositionalEncoding1D(self.hidden_dim)
+        self.input_proj = Linear(self.hidden_dim, self.hidden_dim)
         self.feat_2d_mlp = Sequential(
             LayerNorm(dino_emb_dim),
             Linear(dino_emb_dim, self.hidden_dim)
@@ -76,15 +77,15 @@ class transformer(Module):
         feat_3d = feats.get('feat_3d')
         x = x_t.squeeze(1)
         x = x.unsqueeze(-1).repeat(1, 1, self.hidden_dim)
-        x = x + self.pos_emb(x)
+        x = self.input_proj(x + self.pos_emb(x))
 
         t = self.time_emb(t)
-        #c_2d = self.feat_2d_mlp(feat_2d)
-        #c_3d = self.feat_3d_mlp(feat_3d)
-        #c = c_2d + c_3d
-        #c = t + c
-        c = torch.cat([feat_2d, feat_3d, t], dim=-1)
-        c = self.feat_mlp(c)
+        c_2d = self.feat_2d_mlp(feat_2d)
+        c_3d = self.feat_3d_mlp(feat_3d)
+        c = c_2d + c_3d
+        c = t + c
+        #c = torch.cat([feat_2d, feat_3d, t], dim=-1)
+        #c = self.feat_mlp(c)
 
         for block in self.DiT_blocks:
             x = block(x, c)
@@ -122,7 +123,7 @@ class DiTBlock(Module):
 
     def forward(self, x, c):
         shift_msa, scale_msa, gate_msa, shift_mlp, scale_mlp, gate_mlp = self.adaLN_modulation(c).chunk(6, dim=1)
-        x = x + gate_msa.unsqueeze(1) * self.attn(modulate(x, shift_msa, scale_msa))
+        x = x + gate_msa.unsqueeze(1) * self.attn(modulate(self.norm1(x), shift_msa, scale_msa))
         x = x + gate_mlp.unsqueeze(1) * self.mlp(modulate(self.norm2(x), shift_mlp, scale_mlp))
         return x
 

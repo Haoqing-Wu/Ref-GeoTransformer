@@ -31,7 +31,8 @@ import torch
 from torch import nn
 import torch.distributed as dist
 from PIL import ImageFilter, ImageOps
-
+import torchvision
+import matplotlib.pyplot as plt
 
 class GaussianBlur(object):
     """
@@ -827,3 +828,24 @@ def multi_scale(samples, model):
     v /= 3
     v /= v.norm()
     return v
+
+def visualize_attention(attentions, img):
+    output_dir = "./output/geotransformer.modelnet.rpmnet.stage4.gse.k3.max.oacl.stage2.sinkhorn/result/attention"
+    patch_size= 16
+    nh = attentions.shape[1] # number of head
+    w_featmap = img.shape[-2] // patch_size
+    h_featmap = img.shape[-1] // patch_size
+    # we keep only the output patch attention
+    attentions = attentions[0, :, 0, 1:].reshape(nh, -1)
+
+    attentions = attentions.reshape(nh, w_featmap, h_featmap)
+    attentions = nn.functional.interpolate(attentions.unsqueeze(0), scale_factor=patch_size, mode="nearest")[0].cpu().numpy()
+
+    # save attentions heatmaps
+    os.makedirs(output_dir, exist_ok=True)
+    torchvision.utils.save_image(torchvision.utils.make_grid(img, normalize=True, scale_each=True), os.path.join(output_dir, "img.png"))
+    for j in range(nh):
+        fname = os.path.join(output_dir, "attn-head" + str(j) + ".png")
+        plt.imsave(fname=fname, arr=attentions[j], format='png')
+        print(f"{fname} saved.")
+
