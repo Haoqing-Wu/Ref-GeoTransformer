@@ -112,6 +112,34 @@ def get_camera_info(cam_file, frame_id):
     cam_fy = cam_k[1, 1]
     return cam_cx, cam_cy, cam_fx, cam_fy
 
+def get_detection_file_length(detection_file):
+
+    with open(detection_file, 'r') as file:
+        detection_list = json.load(file)
+    return len(detection_list)
+
+def get_detection_meta(detection_file, idx):
+    with open(detection_file, 'r') as file:
+        detection_list = json.load(file)
+    detection = detection_list[idx]
+    scene_id = detection['scene_id']
+    frame_id = detection['image_id']
+    obj_id = detection['category_id']
+    score = detection['score']
+    bbox = detection['bbox']
+    seg = detection['segmentation']
+    time = detection['time']
+    return {
+        'scene_id': scene_id,
+        'frame_id': frame_id,
+        'obj_id': obj_id,
+        'score': score,
+        'bbox': bbox,
+        'seg': seg,
+        'time': time
+    }
+    
+
 def get_model_symmetry(info_file, model_id):
     rot = np.eye(3)
     trans = np.zeros(3)
