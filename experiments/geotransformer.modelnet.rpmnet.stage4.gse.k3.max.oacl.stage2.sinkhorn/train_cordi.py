@@ -67,15 +67,15 @@ class DDPMTrainer(IterBasedDDPMTrainer):
             if self.cfg.dino.vis:
                 attention = self.dino_model.get_last_selfattention(data_dict['rgb'])
                 visualize_attention(attention, data_dict['rgb'])
-            feat_3d = self.encoder_model(data_dict).get('feats').squeeze(1)
+            feat_3d = self.encoder_model.get_feat(data_dict).squeeze(1)
         data_dict['feat_2d'] = feat_2d
         data_dict['feat_3d'] = feat_3d
-        loss_dict = self.model.get_loss(data_dict)
-        return loss_dict
+        result_dict = self.model.get_loss(data_dict)
+        return result_dict
 
     def val_step(self, iteration, data_dict):
         feat_2d = self.dino_model(data_dict['rgb'])
-        feat_3d = self.encoder_model(data_dict).get('feats').squeeze(1)
+        feat_3d = self.encoder_model.get_feat(data_dict).squeeze(1)
         data_dict['feat_2d'] = feat_2d.squeeze(0)
         data_dict['feat_3d'] = feat_3d.squeeze(0)
         output_dict = self.model.sample(data_dict)

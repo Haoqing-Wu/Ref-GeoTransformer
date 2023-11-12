@@ -41,7 +41,8 @@ class LMODataset(data.Dataset):
             mode,
             overfit,
             rot_type,
-            norm_factor
+            norm_factor,
+            residual_t,
             ):
         super(LMODataset, self).__init__()
 
@@ -70,10 +71,11 @@ class LMODataset(data.Dataset):
         self.rot_type = rot_type
         # normalization factor
         self.norm_factor = norm_factor
+        self.residual_t = residual_t
         # loaded data
         self.data = []
         if self.overfit is not None:
-            self.pickle_root = self.base_dir + 'cache/overfit/'
+            self.pickle_root = self.base_dir + 'cache/overfit/' + str(self.overfit) + '/'
         else:
             self.pickle_root = self.base_dir + 'cache/'
         if not os.path.exists(self.pickle_root + '*.pkl') and self.reload_data:
@@ -129,10 +131,10 @@ class LMODataset(data.Dataset):
         tgt_pcd_raw = tgt_pcd.copy()
         trans_raw = trans.copy()
         center_ref = np.mean(tgt_pcd, axis=0)
-        #tgt_pcd -= center_ref
-        #trans -= center_ref
+        if self.residual_t:
+            tgt_pcd -= center_ref
+            trans -= center_ref
 
-        #trans = trans.reshape(-1)
         r = Rotation.from_matrix(rot)
         if self.rot_type == 'quat':
             rotation = r.as_quat()

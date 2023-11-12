@@ -38,18 +38,19 @@ ensure_dir(_C.result_csv_dir)
 _C.wandb_ddpm = edict()
 _C.wandb_ddpm.enable = False
 _C.wandb_ddpm.project = "cordi_pose_base"
-_C.wandb_ddpm.name = "lm_pbr_b16_L_10xtrans_o6d_mh16_400step_norm_d512_add_dino_foldnet_8l_icp"
+_C.wandb_ddpm.name = "lm6_pbr_b16_L_res_t_o6d_mh16_400step_norm_d512_add_dino_foldnet_8l_icp"
 
 # wandb recon
 _C.wandb_recon = edict()
 _C.wandb_recon.enable = True
 _C.wandb_recon.project = "cordi_recon_comp"
-_C.wandb_recon.name = "lm_pbr_b32_or100_foldnet_plane_k64_d512"
+_C.wandb_recon.name = "lm_pbr_cls_b32_or100_foldnet_plane_k64_d512"
 
 # data
 _C.data = edict()
 _C.data.dataset = "linemod"
 _C.data.norm_factor = 1.0
+_C.data.residual_t = False
 
 # train data
 _C.train = edict()
@@ -158,6 +159,7 @@ _C.recon.encoder = 'foldnet'
 _C.recon.k = 64
 _C.recon.feat_dims = 512
 _C.recon.shape = 'plane'
+_C.recon.cls_emb = True
 
 
 # model - DDPM

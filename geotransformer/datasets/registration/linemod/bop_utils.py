@@ -740,7 +740,7 @@ def save_transformed_pcd(output_dict, data_dict, log_dir, level, norm_factor=1.0
     est_transform[:3, 3] = est_transform[:3, 3] / norm_factor
 
     src_points = data_dict['src_points'].squeeze(0)
-    ref_points = data_dict['ref_points'].squeeze(0)
+    ref_points = data_dict['ref_points_raw'].squeeze(0)
     gt_src_points = apply_transform(src_points, transform).cpu().numpy()
     est_src_points = apply_transform(src_points, est_transform).cpu().numpy()
 
@@ -799,7 +799,7 @@ def save_recon_pcd(output_dict, data_dict, log_dir):
 
     return vis
 
-def save_traj(output_dict, data_dict, model_dir, traj_dir, norm_factor=1.0):
+def save_traj(output_dict, data_dict, model_dir, traj_dir, norm_factor=1.0, residual_t=False):
     obj_id = data_dict['obj_id'].item()
     model_file = model_dir + "/obj_" + str(obj_id).zfill(6) + ".ply"
     obj_mesh = o3d.io.read_triangle_mesh(model_file)
@@ -819,7 +819,10 @@ def save_traj(output_dict, data_dict, model_dir, traj_dir, norm_factor=1.0):
 
             step_transformation = transformation[hypothesis_idx, :, :].squeeze(0) # select the first hypothesis
             ortho6d = step_transformation[:6]
-            trans = step_transformation[6:].cpu() * 1000.0 / norm_factor
+            if residual_t:
+                trans = (step_transformation[6:] + output_dict['center_ref']).cpu() * 1000.0 / norm_factor
+            else:
+                trans = step_transformation[6:].cpu() * 1000.0 / norm_factor
             rot = compute_rotation_matrix_from_ortho6d(ortho6d.unsqueeze(0)).squeeze(0).cpu()
             transformation_matrix = torch.from_numpy(get_transform_from_rotation_translation(rot, trans).astype(np.float32))
             hypothesis_mesh = copy.deepcopy(obj_mesh)
@@ -860,4 +863,20 @@ def write_result_csv(output_dict, data_dict, filepath, norm_factor=1.0):
         writer = csv.writer(file, delimiter=',')
         writer.writerow([scene_id, img_id, obj_id, score, ' '.join(map(str, rot_row_wise)), ' '.join(map(str, trans)), time])
 
-    
+
+def update_category_loss(category_loss, result_dict):
+    obj_id = result_dict['obj_id']
+    category_loss[obj_id-1].append(result_dict['loss'])
+    return category_loss
+
+def print_mean_category_loss(category_loss):
+    for obj_id in category_loss.keys():
+        print("obj_id: ", obj_id+1, "mean loss: ", np.average(category_loss[obj_id]))
+
+def save_category_loss(category_loss, filepath):
+    with open(filepath, mode='w', newline='') as file:
+        writer = csv.writer(file, delimiter=',')
+        for obj_id in category_loss.keys():
+            for loss in category_loss[obj_id]:
+                writer.writerow([obj_id+1, loss])
+                

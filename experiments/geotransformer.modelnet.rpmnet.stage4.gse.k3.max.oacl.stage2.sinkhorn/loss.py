@@ -118,6 +118,7 @@ class ChamferLoss(nn.Module):
         return loss_1 + loss_2
     
     def forward(self, output_dict, data_dict):
+        obj_id = data_dict['obj_id']
         recon = output_dict['recon']
         src_points = data_dict['src_points']
         transform = data_dict['transform']
@@ -125,7 +126,8 @@ class ChamferLoss(nn.Module):
         loss = self.loss(recon, gt_src_points)
 
         return {
-            'loss': loss
+            'loss': loss,
+            #'obj_id': obj_id
         }
 
 

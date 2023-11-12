@@ -13,6 +13,8 @@ import torch.nn.init as init
 import torch.nn.functional as F
 import numpy as np
 import itertools
+from geotransformer.modules.cordi.transformer import SinusoidalPositionEmbeddings
+
 
 def knn(x, k):
     batch_size = x.size(0)
@@ -387,16 +389,37 @@ class ReconNet(nn.Module):
             self.encoder = DGCNN_Cls_Encoder(cfg)
         elif cfg.recon.encoder == 'dgcnn_seg':
             self.encoder = DGCNN_Seg_Encoder(cfg)
+        
+        self.feat_dims = cfg.recon.feat_dims
+        self.enable_cls_emb = cfg.recon.cls_emb
         self.decoder = FoldNet_Decoder(cfg)
+        self.pos_emb = SinusoidalPositionEmbeddings(self.feat_dims)
+
 
     def forward(self, input):
         ref_points = input['ref_points']
-        feats = self.encoder(ref_points)       
+        obj_id = input['obj_id']
+        feats = self.encoder(ref_points)
+        if self.enable_cls_emb:
+            cls_emb = self.pos_emb(obj_id).unsqueeze(1)
+            feats = feats + cls_emb       
         recon = self.decoder(feats)
         return {
             'feats': feats,
             'recon': recon
         }
+
+    def get_feat(self, input):
+        ref_points = input['ref_points']
+        obj_id = input['obj_id']
+        feats = self.encoder(ref_points)
+        if self.enable_cls_emb:
+            cls_emb = self.pos_emb(obj_id).unsqueeze(1)
+            feats = feats + cls_emb
+        return feats
+    
+
+
 
 def create_model(cfg):
     model = ReconNet(cfg)

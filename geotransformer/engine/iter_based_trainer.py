@@ -402,8 +402,8 @@ class IterBasedDDPMTrainer(BaseTrainer):
         self.before_val()
         summary_board = SummaryBoard(adaptive=True)
         timer = Timer()
-        total_iterations = len(self.test_loader)
-        #total_iterations = 50
+        #total_iterations = len(self.test_loader)
+        total_iterations = 50
         traj_dir = self.result_pcd_dir + "/traj/test/"
         log_dir = self.result_pcd_dir + "/test_"
         csv_file = self.result_csv_dir + "/test_" + str(self.iteration) + "_result.csv"
@@ -465,7 +465,7 @@ class IterBasedDDPMTrainer(BaseTrainer):
         assert self.val_loader is not None
 
         # load pretrained encoder -> self.encoder_model
-        self.load_pretrained_model(osp.join(self.snapshot_encoder_dir, 'snapshot_comp_lm.pth.tar'))
+        self.load_pretrained_model(osp.join(self.snapshot_encoder_dir, 'snapshot_comp_lm6.pth.tar'))
 
         if self.args.resume:
             self.load_snapshot(osp.join(self.snapshot_ddpm_dir, 'iter-1000000.pth.tar'))
@@ -629,7 +629,7 @@ class IterBasedReconTrainer(BaseTrainer):
         self.before_val()
         summary_board = SummaryBoard(adaptive=True)
         timer = Timer()
-        total_iterations = len(self.val_loader)//10
+        total_iterations = len(self.val_loader)//100
         sample = np.random.randint(0, total_iterations)
         src_pcd = None
         ref_pcd = None
@@ -686,6 +686,8 @@ class IterBasedReconTrainer(BaseTrainer):
         src_pcd = None
         ref_pcd = None
         log_dir = self.result_pcd_dir + "/test_"
+        category_loss = {i: [] for i in range(15)}
+        
         pbar = tqdm.tqdm(enumerate(self.test_loader), total=total_iterations) 
         for iteration, data_dict in pbar:
             self.inner_iteration = iteration + 1
@@ -697,6 +699,7 @@ class IterBasedReconTrainer(BaseTrainer):
             timer.add_process_time()
             self.after_val_step(self.inner_iteration, data_dict, output_dict, result_dict)
             result_dict = self.release_tensors(result_dict)
+            #category_loss = update_category_loss(category_loss, result_dict)
             summary_board.update_from_result_dict(result_dict)
             message = get_log_string(
                 result_dict=summary_board.summary(),
@@ -709,8 +712,11 @@ class IterBasedReconTrainer(BaseTrainer):
             if iteration == sample:
                 # save the point cloud and corresponding prediction
                 vis = save_recon_pcd(output_dict, data_dict, log_dir)
+                #break
 
         self.after_val()
+        #print_mean_category_loss(category_loss)
+        #save_category_loss(category_loss, self.result_csv_dir + "/test_" + str(self.iteration) + "_comp_cd_result.csv")
         summary_dict = summary_board.summary()
         message = '[Test] ' + get_log_string(summary_dict, iteration=self.iteration, timer=timer)
         self.logger.critical(message)
@@ -729,7 +735,7 @@ class IterBasedReconTrainer(BaseTrainer):
         assert self.val_loader is not None
 
         if self.args.resume:
-            self.load_snapshot(osp.join(self.snapshot_recon_dir, 'snapshot.pth.tar'))
+            self.load_snapshot(osp.join(self.snapshot_recon_dir, 'snapshot_comp_lm_k64.pth.tar'))
         elif self.args.snapshot is not None:
             self.load_snapshot(self.args.snapshot)
         self.set_train_mode()
