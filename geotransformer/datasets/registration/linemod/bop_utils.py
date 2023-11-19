@@ -844,25 +844,34 @@ def save_traj(output_dict, data_dict, model_dir, traj_dir, norm_factor=1.0, resi
 
 import csv
 
-def write_result_csv(output_dict, data_dict, filepath, norm_factor=1.0):
+def write_result_csv(output_dict, data_dict, filepath_c, filepath_r, norm_factor=1.0):
     scene_id = data_dict['scene_id'].item()
     img_id = data_dict['img_id'].item()
     obj_id = data_dict['obj_id'].item()
 
     score = 1.0
-    #transform = output_dict['coarse_trans'].cpu().numpy()
-    transform = output_dict['refined_trans'].cpu().numpy()
-    rot = transform[:3, :3]
-    rot_row_wise = rot.flatten()
+    transform_c = output_dict['coarse_trans'].cpu().numpy()
+    transform_r = output_dict['refined_trans'].cpu().numpy()
+    rot_c = transform_c[:3, :3]
+    rot_row_wise_c = rot_c.flatten()
 
-    trans = transform[:3, 3] * 1000.0 / norm_factor
+    trans_c = transform_c[:3, 3] * 1000.0 / norm_factor
+
+    rot_r = transform_r[:3, :3]
+    rot_row_wise_r = rot_r.flatten()
+
+    trans_r = transform_r[:3, 3] * 1000.0 / norm_factor
     
     time = 1.0
 
-    with open(filepath, mode='a', newline='') as file:
+    with open(filepath_c, mode='a', newline='') as file:
         writer = csv.writer(file, delimiter=',')
-        writer.writerow([scene_id, img_id, obj_id, score, ' '.join(map(str, rot_row_wise)), ' '.join(map(str, trans)), time])
+        writer.writerow([scene_id, img_id, obj_id, score, ' '.join(map(str, rot_row_wise_c)), ' '.join(map(str, trans_c)), time])
 
+    with open(filepath_r, mode='a', newline='') as file:
+        writer = csv.writer(file, delimiter=',')
+        writer.writerow([scene_id, img_id, obj_id, score, ' '.join(map(str, rot_row_wise_r)), ' '.join(map(str, trans_r)), time])
+        
 
 def update_category_loss(category_loss, result_dict):
     obj_id = result_dict['obj_id']

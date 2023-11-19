@@ -353,7 +353,7 @@ class IterBasedDDPMTrainer(BaseTrainer):
             timer.add_prepare_time()
             output_dict, result_dict = self.val_step(self.inner_iteration, data_dict)
             timer.add_process_time()
-            write_result_csv(output_dict, data_dict, csv_file, norm_factor=self.norm_factor)
+            #write_result_csv(output_dict, data_dict, csv_file, norm_factor=self.norm_factor)
             self.after_val_step(self.inner_iteration, data_dict, output_dict, result_dict)
             result_dict = self.release_tensors(result_dict)
             summary_board.update_from_result_dict(result_dict)
@@ -366,9 +366,9 @@ class IterBasedDDPMTrainer(BaseTrainer):
             pbar.set_description(message)
             torch.cuda.empty_cache()
             #save_transformed_pcd(output_dict, data_dict)
-            if iteration == 30:
+            if iteration == 3:
                 # save the point cloud and corresponding prediction
-                save_traj(output_dict, data_dict, model_dir, traj_dir, norm_factor=self.norm_factor)
+                #save_traj(output_dict, data_dict, model_dir, traj_dir, norm_factor=self.norm_factor)
                 est_tran_pcd_plt_c = save_transformed_pcd(output_dict, data_dict, log_dir, 'coarse', norm_factor=self.norm_factor)
                 est_tran_pcd_plt_r = save_transformed_pcd(output_dict, data_dict, log_dir, 'refined', norm_factor=self.norm_factor)
                 break
@@ -385,10 +385,12 @@ class IterBasedDDPMTrainer(BaseTrainer):
                     "RTE_C": summary_dict['RTE_C'],
                     "RMSE_C": summary_dict['RMSE_C'],
                     "RR_C": summary_dict['RR_C'],
+                    "ADD_C": summary_dict['ADD_C'],
                     "RRE_R": summary_dict['RRE_R'],
                     "RTE_R": summary_dict['RTE_R'],
                     "RMSE_R": summary_dict['RMSE_R'],
                     "RR_R": summary_dict['RR_R'],
+                    "ADD_R": summary_dict['ADD_R'],
                     "Var": summary_dict['Var'],
                     "Est_pose_C": wandb.Object3D(est_tran_pcd_plt_c),
                     "Est_pose_R": wandb.Object3D(est_tran_pcd_plt_r)
@@ -406,7 +408,8 @@ class IterBasedDDPMTrainer(BaseTrainer):
         total_iterations = 50
         traj_dir = self.result_pcd_dir + "/traj/test/"
         log_dir = self.result_pcd_dir + "/test_"
-        csv_file = self.result_csv_dir + "/test_" + str(self.iteration) + "_result.csv"
+        csv_file_c = self.result_csv_dir + "/0_test_c_result.csv"
+        csv_file_r = self.result_csv_dir + "/0_test_r_result.csv"
         model_dir = self.root_dir + "/data/lm/models"
 
         pbar = tqdm.tqdm(enumerate(self.test_loader), total=total_iterations)
@@ -418,7 +421,7 @@ class IterBasedDDPMTrainer(BaseTrainer):
             timer.add_prepare_time()
             output_dict, result_dict = self.val_step(self.inner_iteration, data_dict)
             timer.add_process_time()
-            write_result_csv(output_dict, data_dict, csv_file, norm_factor=self.norm_factor)
+            write_result_csv(output_dict, data_dict, csv_file_c, csv_file_r, norm_factor=self.norm_factor)
             self.after_val_step(self.inner_iteration, data_dict, output_dict, result_dict)
             result_dict = self.release_tensors(result_dict)
             summary_board.update_from_result_dict(result_dict)
@@ -432,10 +435,10 @@ class IterBasedDDPMTrainer(BaseTrainer):
             torch.cuda.empty_cache()
             if iteration == 50:
                 # save the point cloud and corresponding prediction
-                save_traj(output_dict, data_dict, model_dir, traj_dir, norm_factor=self.norm_factor)
+                #save_traj(output_dict, data_dict, model_dir, traj_dir, norm_factor=self.norm_factor)
                 est_tran_pcd_plt_c = save_transformed_pcd(output_dict, data_dict, log_dir, 'coarse', norm_factor=self.norm_factor)
                 est_tran_pcd_plt_r = save_transformed_pcd(output_dict, data_dict, log_dir, 'refined', norm_factor=self.norm_factor)
-                #break
+                break
 
         self.after_val()
         summary_dict = summary_board.summary()
@@ -449,10 +452,12 @@ class IterBasedDDPMTrainer(BaseTrainer):
                     "RTE_C": summary_dict['RTE_C'],
                     "RMSE_C": summary_dict['RMSE_C'],
                     "RR_C": summary_dict['RR_C'],
+                    "ADD_C": summary_dict['ADD_C'],
                     "RRE_R": summary_dict['RRE_R'],
                     "RTE_R": summary_dict['RTE_R'],
                     "RMSE_R": summary_dict['RMSE_R'],
                     "RR_R": summary_dict['RR_R'],
+                    "ADD_R": summary_dict['ADD_R'],
                     "Var": summary_dict['Var'],
                     "Est_pose_C": wandb.Object3D(est_tran_pcd_plt_c),
                     "Est_pose_R": wandb.Object3D(est_tran_pcd_plt_r)        
@@ -465,10 +470,10 @@ class IterBasedDDPMTrainer(BaseTrainer):
         assert self.val_loader is not None
 
         # load pretrained encoder -> self.encoder_model
-        self.load_pretrained_model(osp.join(self.snapshot_encoder_dir, 'snapshot_comp_lm6.pth.tar'))
+        self.load_pretrained_model(osp.join(self.snapshot_encoder_dir, 'snapshot_comp_k64_lm6.pth.tar'))
 
         if self.args.resume:
-            self.load_snapshot(osp.join(self.snapshot_ddpm_dir, 'iter-1000000.pth.tar'))
+            self.load_snapshot(osp.join(self.snapshot_ddpm_dir, 'snapshot_pose_step1000_lm6.pth.tar'))
         elif self.args.snapshot is not None:
             self.load_snapshot(self.args.snapshot)
         self.set_train_mode()
@@ -686,7 +691,7 @@ class IterBasedReconTrainer(BaseTrainer):
         src_pcd = None
         ref_pcd = None
         log_dir = self.result_pcd_dir + "/test_"
-        category_loss = {i: [] for i in range(15)}
+        #category_loss = {i: [] for i in range(15)}
         
         pbar = tqdm.tqdm(enumerate(self.test_loader), total=total_iterations) 
         for iteration, data_dict in pbar:
@@ -699,7 +704,7 @@ class IterBasedReconTrainer(BaseTrainer):
             timer.add_process_time()
             self.after_val_step(self.inner_iteration, data_dict, output_dict, result_dict)
             result_dict = self.release_tensors(result_dict)
-            #category_loss = update_category_loss(category_loss, result_dict)
+            category_loss = update_category_loss(category_loss, result_dict)
             summary_board.update_from_result_dict(result_dict)
             message = get_log_string(
                 result_dict=summary_board.summary(),
@@ -735,7 +740,7 @@ class IterBasedReconTrainer(BaseTrainer):
         assert self.val_loader is not None
 
         if self.args.resume:
-            self.load_snapshot(osp.join(self.snapshot_recon_dir, 'snapshot_comp_lm_k64.pth.tar'))
+            self.load_snapshot(osp.join(self.snapshot_recon_dir, 'snapshot_comp_k64_lm7.pth.tar'))
         elif self.args.snapshot is not None:
             self.load_snapshot(self.args.snapshot)
         self.set_train_mode()

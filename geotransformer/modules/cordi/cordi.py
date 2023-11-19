@@ -201,7 +201,7 @@ class Cordi(Module):
             if self.residual_t:
                 trans+=center_ref
             r = Rotation.from_quat(quat)
-            rot = rot.as_matrix()
+            rot = r.as_matrix()
         elif self.rotation_type == 'mrp':
             mrp = rt_init[:3]
             trans = rt_init[3:]

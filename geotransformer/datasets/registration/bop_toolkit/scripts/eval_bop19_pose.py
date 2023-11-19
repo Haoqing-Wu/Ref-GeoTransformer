@@ -222,8 +222,8 @@ for result_filename in p['result_filenames']:
         # Load the scores.
         misc.log('Loading calculated scores from: {}'.format(scores_path))
         scores = inout.load_json(scores_path)
-        #recalls.append(scores['obj_recalls']['6'])
-        recalls.append(scores['recall'])
+        recalls.append(scores['obj_recalls']['6'])
+        #recalls.append(scores['recall'])
 
     average_recalls[error['type']] = np.mean(recalls)
 
@@ -257,3 +257,6 @@ for result_filename in p['result_filenames']:
     misc.log('- {}: {}'.format(score_name, score_value))
 
 misc.log('Done.')
+
+
+# python geotransformer/datasets/registration/bop_toolkit/scripts/eval_bop19_pose.py  --renderer_type=vispy --result_filenames=

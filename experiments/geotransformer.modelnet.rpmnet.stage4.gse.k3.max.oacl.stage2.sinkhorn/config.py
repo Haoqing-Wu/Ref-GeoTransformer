@@ -38,11 +38,11 @@ ensure_dir(_C.result_csv_dir)
 _C.wandb_ddpm = edict()
 _C.wandb_ddpm.enable = False
 _C.wandb_ddpm.project = "cordi_pose_base"
-_C.wandb_ddpm.name = "lm6_pbr_b16_L_res_t_o6d_mh16_400step_norm_d512_add_dino_foldnet_8l_icp"
+_C.wandb_ddpm.name = "lm6_pbr_b16_S_res_t_o6d_mh16_400step_norm_d256_add_dino_foldnet_4l_icp"
 
 # wandb recon
 _C.wandb_recon = edict()
-_C.wandb_recon.enable = True
+_C.wandb_recon.enable = False
 _C.wandb_recon.project = "cordi_recon_comp"
 _C.wandb_recon.name = "lm_pbr_cls_b32_or100_foldnet_plane_k64_d512"
 
@@ -50,11 +50,11 @@ _C.wandb_recon.name = "lm_pbr_cls_b32_or100_foldnet_plane_k64_d512"
 _C.data = edict()
 _C.data.dataset = "linemod"
 _C.data.norm_factor = 1.0
-_C.data.residual_t = False
+_C.data.residual_t = True
 
 # train data
 _C.train = edict()
-_C.train.batch_size = 32
+_C.train.batch_size = 16
 _C.train.num_workers = 8
 _C.train.noise_magnitude = 0.05
 _C.train.class_indices = "all"
@@ -87,7 +87,7 @@ _C.optim.weight_decay = 1e-6
 _C.optim.warmup_steps = 1000
 _C.optim.eta_init = 0.1
 _C.optim.eta_min = 0.01
-_C.optim.max_iteration = 2000000
+_C.optim.max_iteration = 500000
 _C.optim.snapshot_steps = 5000
 _C.optim.grad_acc_steps = 1
 
@@ -159,7 +159,7 @@ _C.recon.encoder = 'foldnet'
 _C.recon.k = 64
 _C.recon.feat_dims = 512
 _C.recon.shape = 'plane'
-_C.recon.cls_emb = True
+_C.recon.cls_emb = False
 
 
 # model - DDPM
