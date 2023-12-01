@@ -811,6 +811,7 @@ def save_traj(output_dict, data_dict, model_dir, traj_dir, norm_factor=1.0, resi
     gt_obj_mesh.transform(gt_rescale_transformation.cpu().numpy())
     # change the color of the mesh: green
     gt_obj_mesh.paint_uniform_color([0.0, 1.0, 0.0])
+    o3d.io.write_triangle_mesh(traj_dir + "gt.ply", gt_obj_mesh)
 
     traj = output_dict['traj']
     for idx, transformation in enumerate(traj):
@@ -826,14 +827,13 @@ def save_traj(output_dict, data_dict, model_dir, traj_dir, norm_factor=1.0, resi
             rot = compute_rotation_matrix_from_ortho6d(ortho6d.unsqueeze(0)).squeeze(0).cpu()
             transformation_matrix = torch.from_numpy(get_transform_from_rotation_translation(rot, trans).astype(np.float32))
             hypothesis_mesh = copy.deepcopy(obj_mesh)
-            # change the transparancy of the mesh
 
             hypothesis_mesh.transform(transformation_matrix.numpy())
             hypotheses_mesh += hypothesis_mesh
 
         # make 2 meshes in one file
         vis_mesh = o3d.geometry.TriangleMesh()
-        vis_mesh += gt_obj_mesh
+        #vis_mesh += gt_obj_mesh
         vis_mesh += hypotheses_mesh
         # save the mesh
         vis_filename = traj_dir + str(idx) + ".ply"
@@ -889,3 +889,16 @@ def save_category_loss(category_loss, filepath):
             for loss in category_loss[obj_id]:
                 writer.writerow([obj_id+1, loss])
                 
+def update_category_add(category_add_c, category_add_r, result_dict):
+    obj_id = result_dict['obj_id']
+    category_add_c[obj_id-1].append(result_dict['ADD_C'])
+    category_add_r[obj_id-1].append(result_dict['ADD_R'])
+
+    return category_add_c, category_add_r
+
+def save_category_add(category_add, filepath):
+    with open(filepath, mode='w', newline='') as file:
+        writer = csv.writer(file, delimiter=',')
+        for obj_id in category_add.keys():
+            mean = np.average(category_add[obj_id])
+            writer.writerow([obj_id+1, mean])

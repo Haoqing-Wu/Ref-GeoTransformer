@@ -35,7 +35,7 @@ p = {
   # Select ID's of scenes, images and GT poses to be processed.
   # Empty list [] means that all ID's will be used.
   'scene_ids': [],
-  'im_ids': [652],
+  'im_ids': [491],
   'gt_ids': [],
 
   # Indicates whether to render RGB images.

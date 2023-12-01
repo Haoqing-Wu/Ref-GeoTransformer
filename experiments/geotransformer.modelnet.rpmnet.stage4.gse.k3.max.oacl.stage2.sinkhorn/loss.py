@@ -383,7 +383,8 @@ class DDPMEvaluator(nn.Module):
         if obj_id in [3, 10, 11]:
             kdt = KDTree(gt_src_points.cpu().numpy(), metric='euclidean')
             distance, _ = kdt.query(est_src_points.cpu().numpy(), k=1)
-            add_score = distance < diameter * 0.1 
+            mean_distance = np.mean(distance)
+            add_score = mean_distance < diameter * 0.1 
         else:
             add_score = rmse < diameter * 0.1
         return rre, rte, rmse, recall, add_score
@@ -403,4 +404,5 @@ class DDPMEvaluator(nn.Module):
             'RR_R': recall_r,
             'ADD_R': add_r,
             'Var': output_dict['var_rt'],
+            #'obj_id': data_dict['obj_id'].cpu().numpy()[0]
         }

@@ -1,10 +1,5 @@
-import argparse
-import os
-import os.path as osp
 import time
-
 import torch
-import torch.nn as nn
 import torch.optim as optim
 from IPython import embed
 
@@ -16,7 +11,7 @@ from geotransformer.modules.cordi import vision_transformer as vits
 from config import make_cfg
 from dataset import train_valid_data_loader
 from geotransformer.modules.recon.model import create_model
-from loss import OverallLoss, DDPMEvaluator
+from loss import DDPMEvaluator
 from geotransformer.modules.cordi.utils import visualize_attention
 
 
@@ -33,18 +28,18 @@ class DDPMTrainer(IterBasedDDPMTrainer):
         self.logger.info(message)
         self.register_loader(train_loader, val_loader, test_loader)
 
-        # model, optimizer, scheduler
+        # 3D encoder
         encoder_model = create_model(cfg).cuda() # encoder
         encoder_model = self.register_pretrained_model(encoder_model)
-        # dino/vit
+        # 2D encoder
         dino_model = vits.__dict__[cfg.dino.arch](patch_size=cfg.dino.patch_size, num_classes=0).cuda()
         dino_model = self.register_dino_model(dino_model)
         load_pretrained_weights_dino(self.dino_model, cfg.dino.pretrained_weights, cfg.dino.checkpoint_key, cfg.dino.arch, cfg.dino.patch_size)
-        # create ddpm model
-        ########################################
+        # Diffusion
         model = create_cordi(cfg).cuda() # ddpm
-        ########################################
         model = self.register_model(model)
+
+        # optimizer, scheduler
         optimizer = optim.Adam(model.parameters(), lr=cfg.optim.lr, weight_decay=cfg.optim.weight_decay)
         self.register_optimizer(optimizer)
         scheduler = build_warmup_cosine_lr_scheduler(
@@ -56,9 +51,7 @@ class DDPMTrainer(IterBasedDDPMTrainer):
             grad_acc_steps=cfg.optim.grad_acc_steps
         )
         self.register_scheduler(scheduler)
-
-        # loss function, evaluator
-        # self.loss_func = OverallLoss(cfg).cuda()
+        # Evaluator
         self.evaluator = DDPMEvaluator(cfg).cuda()
 
     def train_step(self, iteration, data_dict):
